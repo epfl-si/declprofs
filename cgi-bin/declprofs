@@ -1792,24 +1792,6 @@ sub makePDF {
 				-lead     => $std_lead ,
 				-align    => 'justify',
 			);
-#		$gfx->move( 196/mm, 102/mm );
-#		$gfx->line( 272/mm, 102/mm );
-#		$gfx->stroke;
-
-#		( $endw, $ypos, $paragraph ) = text_block(
-#				$page_text,
-#				'Signature:',
-#				-x        => 152/mm,
-#				-y        => 20/mm,
-#				-w        => $std_width,
-#				-h				=> 20/mm,
-#				-lead     => $std_lead ,
-#				-align    => 'justify',
-#			);
-#		$gfx->linedash( 1, 2 );
-#		$gfx->move( 180/mm, 20/mm );
-#		$gfx->line( 275/mm, 20/mm );
-#		$gfx->stroke;
 
 		#	- DONE		
 		$pdf->save;
