@@ -192,11 +192,11 @@ authenticate () ;
 my $limit_year = $yeartodo eq $year ? $year + 1 : $yeartodo;
 
 my @pdf_textes = (
- qq|According to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005, and to article 8, in particular:|,
- qq|1  Professors must disclose to the President of EPFL all external activities such as consulting, scientific advice or expert valuations that they may exercise in accordance with article 6 of the "Ordinance on EPF faculty". The disclosure is made once a year for the previous twelve months and mentions the activities carried out during that year (including those still in progress). The disclosure shall include the following information: (i) type and area of activity and (ii) name of principal. In case of use of EPFL resources or potential conflicts of interest, article 6, or article 7, paragraph 2 of this directive, remains applicable respectively. |,
- qq|2  The activities of professors referred to in the present article are exercised in a private capacity, that is in their own name, on their own behalf and under their own responsibility.|,
- qq|3  For all activities referred to in the first paragraph, professors will obtain from their principal or co-contracting party a written undertaking towards the EPFL concerning (i) intellectual property belonging to the EPFL and (ii) the fact that the mandate does not commit the EPFL. The terms of this undertaking are stipulated by the TTO, which provides a standard text.|,
- qq|The disclosure of all outside activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, has been uploaded onto the EPFL online platform. Data is treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3).|,
+ qq|Once per year, professors shall disclose outside activities, according to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1).|,
+ qq|Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1.|,
+ qq||,
+ qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. |,
+ qq|Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3). All activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, shall be listed.|,
  qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
      );
 
@@ -1915,7 +1915,7 @@ sub put_pdf_description {
 			-lead     => $std_lead ,
 			-align    => 'justify',
 	);
-	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
+	$page_text->font( $font{$std_font}{'Roman'}, 8/pt );
 	( $endw, $ypos, $paragraph ) = text_block(
 			$page_text,
 			$pdf_textes[1],
@@ -1938,6 +1938,7 @@ sub put_pdf_description {
 			-align    => 'justify',
 	);
 	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
+	$pdf_textes[3] =~ s/YEARNEXT/$yeartodo + 1/ge;
 	( $endw, $ypos, $paragraph ) = text_block(
 			$page_text,
 			$pdf_textes[3],
