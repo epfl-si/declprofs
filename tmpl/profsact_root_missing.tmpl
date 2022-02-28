@@ -1,0 +1,96 @@
+<TMPL_INCLUDE NAME="profsact_head.tmpl">
+
+<div class="container">
+
+<TMPL_IF NAME=sMsg>
+	<div class="row error">
+		<p><TMPL_VAR NAME=sMsg></p>
+	</div>
+<TMPL_ELSE>
+
+		<div class="col-md-12" ><h3><TMPL_VAR NAME=sYearToDo> : missing activities declarations</h3></div>
+		<TMPL_IF NAME=profsLoop>
+		<form name="missing" id="missing" action="<TMPL_VAR NAME=sPathMe>/missing" method="post">
+		<input type="hidden" name="op" id="op">
+		<input type="hidden" name="yeartodo" value="<TMPL_VAR NAME=sYearToDo>">
+		<div class="col-md-10" >
+		1. <b>Select people:</b> 
+		<input type="radio" name="remind" value="1" onclick="checkAll('missing', true);"> select all
+		&nbsp;
+		<input type="radio" name="remind" value="0" onclick="checkAll('missing', false);"> reset selection
+		, 2. <b>Set new delay on</b>: <input name="nxtdelay" size="10" value="<TMPL_VAR NAME=sLimitDate>"> (dd/mm/yyyy)
+
+		, 3. <a href="#" onclick="
+				document.getElementById('op').value='remind';
+				document.getElementById('missing').submit();
+				"><b>Send reminder</b></a> to selected
+		</div>
+
+		<div class="col-md-2" ><a href="<TMPL_VAR NAME=sPathMe>/extract?yeartodo=<TMPL_VAR NAME=sYearToDo>&what=missing">Extract data (CSV)</a></div>
+
+		</TMPL_IF>
+
+		<TMPL_IF NAME=sRecipients>
+		<!--	reminders confirmation -->
+		<div class="col-md-12 ontop" id='notif'>
+				<div class="right_align"> <a href="#" onclick="hideDiv('notif');">close</a></div>
+				<h3>Reminder notification sent to</h3>
+				<TMPL_VAR NAME=sRecipients>
+		</div>
+		</TMPL_IF>
+		
+		<div class="col-md-12" >
+			<div class="row">
+				<div class="col-md-1 box_title grey">Sciper</div>
+				<div class="col-md-4 box_title grey">Name</div>
+				<div class="col-md-2 box_title grey">Last reminder</div>
+				<div class="col-md-2 box_title grey">Next delay</div>
+				<div class="col-md-3 box_title grey">Unit</div>
+			</div>
+
+			<TMPL_LOOP NAME=profsLoop>
+			<div class="row underlined" >
+				<div class="col-md-1"><TMPL_VAR NAME=sciper></div>
+				<div class="col-md-4">
+					<TMPL_IF NAME=email>
+						<input type="checkbox" name="scipertodo_<TMPL_VAR NAME=sciper>" id="scipertodo_<TMPL_VAR NAME=sciper>" value="<TMPL_VAR NAME=sciper>">
+						<TMPL_VAR NAME=lastname> <TMPL_VAR NAME=firstname>
+					<TMPL_ELSE>
+						<span class="line-through"><TMPL_VAR NAME=lastname> <TMPL_VAR NAME=firstname></span>
+					</TMPL_IF>
+
+					<TMPL_IF NAME=hasremarks>
+						<div class="col-md-12 ontop-nobck" id="remarks_<TMPL_VAR NAME=sciper>" style="display:none;">
+							<div class="row">
+							<div class="col-md-10">
+							<h3>Remarks on activity : <TMPL_VAR NAME=year> <TMPL_VAR NAME=lastname> <TMPL_VAR NAME=firstname></h3>
+							</div>
+							<div class="col-md-2 align_bottom italic">
+							<span class="right"><a href="#" onclick="hideDiv('remarks_<TMPL_VAR NAME=sciper>');">close</a></span>
+							</div>
+							</div>
+							<div class="col-md-12"><b>APR Remarks:</b> <TMPL_VAR NAME=remarks></textarea></div>
+							<div class="col-md-12"><b>Professor Remarks: </b><TMPL_VAR NAME=prof_remarks></textarea></div>
+						</div>			
+					</TMPL_IF>
+
+				</div>
+				<div class="col-md-2">
+					<TMPL_VAR NAME=reminddate>
+					<TMPL_IF NAME=hasremarks>
+						<span class="btn btn-xs btn-info" title="Remarks about this declaration"><span class="glyphicon glyphicon-align-justify" onclick="showDiv('remarks_<TMPL_VAR NAME=sciper>');"></span></span>
+					</TMPL_IF>
+				</div>
+				<div class="col-md-2"><TMPL_VAR NAME=nxtdelay></div>
+				<div class="col-md-3"><TMPL_VAR NAME=unit> </div>
+			</div>
+			</TMPL_LOOP>
+		</div>
+		</form>
+
+</TMPL_IF>
+
+</div>
+
+<TMPL_INCLUDE NAME="profsact_foot.tmpl">
+

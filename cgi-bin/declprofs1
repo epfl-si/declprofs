@@ -1,0 +1,2253 @@
+#!/usr/bin/perl
+#
+##############################################################################
+#
+# Author:       Ion CIONCA (Ion.Cionca@epfl.ch) - 2017
+#
+#########################################################################
+#####
+#
+#
+
+use strict;
+
+use lib '/opt/declprofs/lib/perl';
+
+use Cadi::CadiDB;
+use Cadi::Persons;
+use Cadi::Accreds;
+use Tequila::Client;
+use Accred::Roles;
+use Data::Dumper;
+
+use HTML::Template;
+use Crypt::GCM;
+use Crypt::Rijndael;
+use CGI;
+use Net::LDAPS;
+use MIME::Words qw(:all);
+use Mail::Sendmail;
+use PDF::API2;
+use Date::Calc;
+use Encode qw(encode);
+
+use vars qw($pi $qs $us $me $tequila $key $sciper $roots $msg $lang $ldap $classid
+			$DEBUG $tmpldir $dbh $CurrentUser $query $year $yeartodo $REGEX_SCIPER $login_as 
+			@yearsLoop $Persons $AUTHSTRENGTH $authtoken $MAX_SESS_DURATION $AP_email $URL
+			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate $dbaccrh 
+			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $aeskey $PROC $MAX_DELAY $Roles
+			$SESSDIR $test_email $exclude_scipers $add_scipers $Accreds $profsAccreds $allRemarks
+			$ROLE_RESPIT $ROLE_ADMINIT $PREPROD $MINPROFACCRED $BLOCKVPN $TESTMAIL
+	);
+
+use constant mm 				=> 25.4 / 72;
+use constant in 				=> 1 / 72;
+use constant pt 				=> 1;
+use constant std_lead 	=> 12/mm;
+use constant small_lead => 10/mm;
+
+#	- accred
+$classid			= 5; 	
+$ROLE_RESPIT	= 19;
+$ROLE_ADMINIT	= 20;
+
+my $basedir 	 	= '/var/www/vhosts/declprofs.epfl.ch';
+
+#	- get access params
+require $basedir.'/private/etc/access_params-declprofs';	
+
+$DEBUG 					= -f '/opt/declprofs/etc/MASTER' ? 0 : 1;
+$PREPROD				= 0;
+$tmpldir 				= $PREPROD ? $basedir.'/private/tmpl-preprod/' : $basedir.'/private/tmpl/';
+$test_email			= 'ion.cionca@epfl.ch,vittoria.belmondo@epfl.ch';	
+$test_email			= 'ion.cionca@epfl.ch' if $ENV{REMOTE_ADDR} eq '128.178.1.146';	
+
+$AP_email				= $DEBUG ? $test_email : 'facultyaffairs@epfl.ch';	
+$lang 					= 'en';
+$me 						= $ENV {SCRIPT_NAME};
+$us							= $ENV {SERVER_NAME};
+$qs 						= $ENV {QUERY_STRING};
+$pi 						= $ENV {PATH_INFO};
+$URL						= 'https://'.$us.$me;
+$REGEX_SCIPER 	= '^[1-9]\d{5}$';	#	
+$MINPROFACCRED	= 30; #	- min prof accred (days)
+
+$BLOCKVPN				= 0;
+$TESTMAIL				= 0;
+
+$AUTHSTRENGTH 	= 2;
+#$AUTHSTRENGTH 	= 1;
+
+$AP_URL					= "https://professeurs.epfl.ch/page-26444-en.html";
+$SESSDIR				= $basedir.'/private/sessions/';
+
+#		- PDF CREATOR
+my $pdf_dir			= $basedir.'/private/pdfs/';
+my $epfl_logo	 	= $basedir.'/htdocs/images/epfl_logo.png';
+my $std_lead 	  = 12/pt;
+my $small_lead  = 10/pt;
+my $std_font 	  = 'Verdana';
+my $std_width	  = 260/mm;
+$BOTTOM					= 25/mm;
+$LEFT						= 20/mm;
+$page_nb				= 1;
+
+#	- record status
+$INACT					= 0;	#	- replaced by more recent
+$PENDING				= 1;	#	- current
+$SENT						= 2;	#	- submitted
+$MAX_SESS_DURATION	= 3000;		#	- session token valid for 3000sec
+
+$err_msgs = {
+	noaccess => qq{This service is for EPFL professors only. <br>Please contact the <a href="$AP_URL">Faculty Affairs</a> for more information},
+	noVPNaccess => qq{This service is available only for EPFL intranet. <br>Please contact the <a href="$AP_URL">Faculty Affairs</a> for more information},
+};
+
+if ($BLOCKVPN) {
+	warn "--> REMOTE_ADDR=$ENV{REMOTE_ADDR}\n";
+	error ($err_msgs->{noVPNaccess}) if $ENV{REMOTE_ADDR} =~ /128\.179\.25[0-5]\./ ;
+}
+
+$CGI::POST_MAX 	= 1024 * 1000; 
+$query 		   		= CGI->new();
+
+#	- exceptions
+$exclude_scipers = '224282,141360,217758,134990,192822,172233,105917,160091,106568,192823';
+$add_scipers 		 = '185424,196677';
+
+escapeParams();
+
+foreach my $item ( split /\//, $pi ) {
+	next unless $item;
+	if ($item =~ /^([a-h\d\:]*)$/) {
+		$authtoken = $1;
+		next;
+	}
+  if 	  ($item =~  /^login_as=([1-9]\d{5})$/) {
+  	$login_as = $1 if $DEBUG;
+  	next;
+	}
+	$PROC = $item;
+}
+
+$ldap   = Net::LDAPS->new('ldap.epfl.ch')    or error ("failed to connect to LDAPS : $!");
+
+$ENV {DBCONFDIR} = '/opt/declprofs/etc';
+$dbh = new Cadi::CadiDB (
+  dbname => 'CADI_DECLPROF',
+   trace => 1,
+) unless $dbh;
+error ("FATAL DB ACCESS") unless $dbh;
+
+$dbaccrh = new Cadi::CadiDB (
+  dbname => 'accred',
+   trace => 1,
+	 utf8  => 1,
+) unless $dbaccrh;
+error ("FATAL DB ACCESS") unless $dbaccrh;
+
+$Persons = new Cadi::Persons (
+      caller => '104782',
+        root => '104782',
+    language => 'en',
+        utf8 => 1,
+);
+
+$Accreds = new Cadi::Accreds (
+      caller => '104782',
+        root => '104782',
+    language => 'en',
+        utf8 => 1,
+);
+
+$Roles = new Accred::Roles ();
+
+my ($sec,$min,$hour,$mday,$mon,$yr,$wday,$yday,$isdst) = localtime(time);
+$mon++;
+$year 				= $yr + 1900;
+
+#	----- SIMULATION --
+#$year = '2019';
+#$mon	= 4;
+#	-----
+
+$currentdate 	= sprintf "%04d-%02d-%02d", $year, $mon, $mday;
+$LASTDATE			= $year.'-05-31';
+$MAX_DELAY		= 14;		#	- next decl delay, days
+
+$yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
+
+$profsAccreds	= getProfsAccreds($yeartodo);
+$allRemarks		= getAllRemarks();
+
+authenticate () ;
+  
+@yearsLoop = getAllYears () if $CurrentUser->{isroot};
+
+my $limit_year = $yeartodo eq $year ? $year + 1 : $yeartodo;
+
+my @pdf_textes = (
+ qq|According to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005, and to article 8, in particular:|,
+ qq|1  Professors must disclose to the President of EPFL all external activities such as consulting, scientific advice or expert valuations that they may exercise in accordance with article 6 of the "Ordinance on EPF faculty". The disclosure is made once a year for the previous twelve months and mentions the activities carried out during that year (including those still in progress). The disclosure shall include the following information: (i) type and area of activity and (ii) name of principal. In case of use of EPFL resources or potential conflicts of interest, article 6, or article 7, paragraph 2 of this directive, remains applicable respectively. |,
+ qq|2  The activities of professors referred to in the present article are exercised in a private capacity, that is in their own name, on their own behalf and under their own responsibility.|,
+ qq|3  For all activities referred to in the first paragraph, professors will obtain from their principal or co-contracting party a written undertaking towards the EPFL concerning (i) intellectual property belonging to the EPFL and (ii) the fact that the mandate does not commit the EPFL. The terms of this undertaking are stipulated by the TTO, which provides a standard text.|,
+ qq|The disclosure of all outside activities engaged in during the period from January 1st, $yeartodo, to December 31st, $yeartodo, has been uploaded onto the EPFL online platform. Data is treated confidentially, according to the Freedom of Information Act (FoIA, RS 152.3).|,
+ qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
+     );
+
+	my $nolimit		= '189915,246669,231181,143954,166542,146991,105059,257875,236660,217627,192826,174688,121849,166540,122431,179025,222189,105615,167337,138859,235585,168244,209207,265228,223776,167919,124369,280037,112464,263767';
+	my $nolimit		= '';
+
+	my $reminders	= getReminders ($yeartodo) ;
+  
+  unless ($CurrentUser->{isroot}) {
+  	$LASTDATE = $reminders->{$CurrentUser->{sciper}}->{nxtdelay} if $reminders->{$CurrentUser->{sciper}}->{nxtdelay} ;
+		#	- exceptions
+		$LASTDATE	= $year.'-12-31' if $nolimit =~ /$CurrentUser->{sciper}/;
+  }
+
+  if 	  ($PROC eq 'save') {
+  	save   ();
+  } elsif ($PROC eq 'search') {
+  	search   ();
+  } elsif ($PROC eq 'list') {
+  	list   ();
+  } elsif ($PROC eq 'missing') {
+  	missing   ();
+  } elsif ($PROC eq 'clone') {
+  	clone   ();
+  } elsif ($PROC eq 'extract') {
+  	extract   ();
+  } elsif ($PROC eq 'history') {
+  	history   ();
+  } elsif ($PROC eq 'remarks') {
+  	remarks   ();
+  } elsif ($PROC eq 'pdf') {
+  	pdf   ();
+  }
+
+  if ( $CurrentUser->{isroot} ) {
+	  list   ($yeartodo);
+	} else {
+		main ();
+	}
+exit;
+
+#_________________
+sub main {
+
+  my $template;
+  if 	  ( $CurrentUser->{isroot} ) {
+		$template = initTempl('profsact_root_main.tmpl');
+  } elsif ( $CurrentUser->{isprof} ) {
+		my $scipertodo 	= $args->{'scipertodo'} ? $args->{'scipertodo'} : $CurrentUser->{sciper};
+		my $yeartodo   	= $args->{'yeartodo'}   ? $args->{'yeartodo'} : $yeartodo;
+		my @years_loop	= sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($scipertodo);
+		$template 	 		= initTempl('profsact_main.tmpl');
+		$template->param(sNomToDo	 	 => $CurrentUser->{lastname});
+		$template->param(sPrenomToDo => $CurrentUser->{firstname});
+		$template->param(sYearsLoop	 => \@years_loop);
+
+  } else {
+  	error ("$err_msgs->{noaccess}") ;
+  }
+  
+	$template->param(sNotif 	=> $args->{submit});
+	$template->param(sPathMe 	=> $me);
+  $template->param(sMsg 		=> $msg);
+  
+  print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+  exit;
+}
+
+#_________________
+sub authenticate {
+
+  unless ($tequila) {
+    $tequila = new Tequila::Client (
+	  service    => 'professors activities',
+	  request    => [ 'name','firstname','uniqueid', 'email'],
+	  identities => 'any',
+	  urlaccess  => "https://$ENV{SERVER_NAME}$ENV{REQUEST_URI}?$ENV{QUERY_STRING}",
+    );
+    $tequila->init ();
+  } else {
+	  if ($tequila->{attrs}->{authstrength} ne $AUTHSTRENGTH) {
+		  $tequila->logout ();
+	  }
+  }
+
+  $tequila->setlang ($lang);
+  $tequila->setclientarg ( 'forcelogin', 1 ) ;
+  $tequila->setsessionsdir ($SESSDIR);
+
+  if ($tequila->{attrs}->{authstrength} ne $AUTHSTRENGTH) {
+	  $tequila->authstrength ($AUTHSTRENGTH);
+  }
+
+  $tequila->authenticate ();
+
+#  my $profsAccreds	 		 		= getProfsAccreds($yeartodo);
+
+  $CurrentUser->{sciper} 		= $tequila->{attrs}->{uniqueid};
+  $CurrentUser->{lastname}	= $tequila->{attrs}->{name};
+  $CurrentUser->{firstname} = $tequila->{attrs}->{firstname};
+  $CurrentUser->{email}  		= $tequila->{attrs}->{email};
+  $CurrentUser->{isroot} 		= $roots->{$CurrentUser->{sciper}};
+  $CurrentUser->{isprof} 		= defined $profsAccreds->{$CurrentUser->{sciper}};
+
+#	- impersonate
+  if ( $login_as && $CurrentUser->{isroot}) {
+	  my $login_as_user 	 	 		= getUserBySciper ($login_as);
+	  $CurrentUser->{sciper} 		= $login_as;
+	  $CurrentUser->{lastname}	= $login_as_user->{lastname};
+	  $CurrentUser->{firstname} = $login_as_user->{firstname};
+	  $CurrentUser->{email}			= $login_as_user->{email};
+		$CurrentUser->{isprof} 		= defined $profsAccreds->{$CurrentUser->{sciper}};
+	  $CurrentUser->{isroot} 		= 0;
+	  $me .= qq{/login_as=$login_as};
+  }
+#	--
+
+warn "authenticate : $CurrentUser->{sciper}, $CurrentUser->{firstname}, $CurrentUser->{lastname}, $CurrentUser->{isprof}\n";
+
+  checkSession ($authtoken) ;
+  $authtoken	= makeSession ()  ;
+  $me		     .= qq{/$authtoken};
+
+  error ("$err_msgs->{noaccess}") unless $CurrentUser->{isprof} || $CurrentUser->{isroot};
+
+}
+
+#_________________
+sub getProfActDataLoop {
+	my ($scipertodo, $clone_fromyear) = @_;
+	return unless $scipertodo;
+	
+	my $yeartodo 			= $args->{yeartodo} ? $args->{yeartodo} : $yeartodo;
+	my $profActByYear = getAllProfAct ($scipertodo);
+#	my $modcrtyr 			= $currentdate le $LASTDATE && ($year-1) eq $yeartodo ? '1' : '' ;
+
+	my @years_loop; my $yeartodo_done; my @cloned_fromyear;
+	foreach my $crtyear ( sort keys %$profActByYear) {
+		next if $args->{yeartodo} and $args->{yeartodo} ne $crtyear;
+		my $prof_act = $profActByYear->{$crtyear};
+		my @year_act; my $submitted; my $donebyroot;
+
+		my $modcrtyr;
+		if ($currentdate le $LASTDATE) {
+			$modcrtyr 	= 1 if ($year-1) eq $crtyear;
+		} else {
+			$modcrtyr 	= 1 if $year eq $crtyear;
+		}
+
+		foreach my $index (sort keys %$prof_act) {
+			push @year_act, { 
+				year		 	=> $crtyear, 
+				scipertodo=> $scipertodo,
+				crt_year 	=> $year, 
+				activity 	=> $prof_act->{$index}->{activity}, 
+				principal => $prof_act->{$index}->{principal}, 
+				modYear 	=> $modcrtyr,
+				isCrtYear => $crtyear eq $year,
+				sPathMe 	=> $me, 
+				index 		=> $index, 
+			} ;
+			$submitted  = $prof_act->{$index}->{ts} if $prof_act->{$index}->{status} eq '2';
+			$donebyroot = 1 if $prof_act->{$index}->{doneby} && $prof_act->{$index}->{doneby} ne $scipertodo;
+		}
+		if ( $crtyear eq $clone_fromyear ) {
+			@cloned_fromyear = @year_act;
+		}
+		if ( $crtyear eq $yeartodo && $clone_fromyear ) {
+			@year_act = @cloned_fromyear;
+		}
+
+		my $crt_remarks = $CurrentUser->{isroot} ? $allRemarks->{$crtyear}->{$scipertodo}->{remark} : $allRemarks->{$crtyear}->{$scipertodo}->{prof_remark};
+
+		push @years_loop, {
+			year 				=> $crtyear,
+			scipertodo 	=> $scipertodo,
+			modYear 		=> $modcrtyr,
+			isCrtYear 	=> $crtyear eq $year,
+			submitted 	=> $submitted,
+			yearAct 		=> \@year_act,
+			sPathMe 		=> $me, 
+			isroot 			=> $CurrentUser->{isroot}, 
+			donebyroot	=> $donebyroot, 
+			crt_remarks	=> $crt_remarks, 
+			remarks			=> $allRemarks->{$crtyear}->{$scipertodo}->{remark}, 
+			prof_remarks=> $allRemarks->{$crtyear}->{$scipertodo}->{prof_remark}, 
+		};
+		$yeartodo_done = $crtyear eq $yeartodo;
+	}
+	
+	unless (@years_loop && $yeartodo_done) {
+		my $modcrtyr;
+		if ($currentdate le $LASTDATE) {
+			$modcrtyr 	= 1 if ($year-1) eq $yeartodo;
+		} else {
+			$modcrtyr 	= 1 if $year eq $yeartodo;
+		}
+		my $crt_remarks = $CurrentUser->{isroot} ? $allRemarks->{$yeartodo}->{$scipertodo}->{remark} : $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark};
+		my @year_act = $clone_fromyear
+								 ? @cloned_fromyear 
+								 : ( { 
+											modYear  	=> $modcrtyr,
+								 			isCrtYear => $yeartodo eq $year, activity => '',
+								 			principal => '', index => 1, 
+								 			}
+								 		);
+		push @years_loop, { 
+			year 	  		=> $yeartodo,
+			scipertodo	=> $scipertodo,
+			modYear   	=> $modcrtyr,
+			yearAct	  	=> \@year_act,
+			isCrtYear 	=> $yeartodo eq $year,
+			sPathMe   	=> $me, 
+			isroot 	  	=> $CurrentUser->{isroot}, 
+			crt_remarks	=> $crt_remarks, 
+			remarks			=> $allRemarks->{$yeartodo}->{$scipertodo}->{remark}, 
+			prof_remarks=> $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark}, 
+		}	;
+	}
+	
+	return sort { $b->{year} cmp $a->{year} } @years_loop;
+
+}
+
+#_________________
+sub missing {
+
+  error ('No access to this function') unless $CurrentUser->{isroot};
+	my $yeartodo = $args->{yeartodo} ;
+
+  my $submittedActs = getSubmitted($yeartodo);
+  my $units 				= getUnits ($profsAccreds);
+  my $persData 			= $Persons->getManyPersonsInfos(keys %$profsAccreds);
+  my $reminders			= getReminders ($yeartodo) ;
+
+	my $emails;
+  my @profsLoop;
+  foreach my $sciper ( sort { $persData->{$a}->{name}.$persData->{$a}->{firstname} cmp $persData->{$b}->{name}.$persData->{$b}->{firstname} } keys %$profsAccreds ) 
+  {
+		next if $submittedActs->{$sciper};
+  	my $person 		= $persData->{$sciper};
+
+  	my $hasremarks = $allRemarks->{$yeartodo}->{$sciper}->{remark} || $allRemarks->{$yeartodo}->{$sciper}->{prof_remark};
+  	push @profsLoop, {
+			sPathMe 	=> $me, 
+  		sciper 		=> $person->{sciper},
+  		lastname 	=> $person->{name},
+  		firstname => $person->{firstname},
+  		email			=> $person->{email},
+  		reminddate=> $reminders->{$person->{sciper}}->{reminddate},
+  		nxtdelay	=> $reminders->{$person->{sciper}}->{nxtdelay},
+  		unit			=> $units->{$profsAccreds->{$sciper}},
+			hasremarks=> $hasremarks, 
+			remarks		=> $allRemarks->{$yeartodo}->{$sciper}->{remark}, 
+			prof_remarks=> $allRemarks->{$yeartodo}->{$sciper}->{prof_remark}, 
+			year			=> $yeartodo, 
+  	};
+  	$emails->{$person->{sciper}} = $person->{email};
+  }
+
+  my $template = initTempl('profsact_root_missing.tmpl');
+	my $recipients ;
+  
+  my ($limit_yy, $limit_mm, $limit_dd) = Date::Calc::Add_Delta_Days ($year, $mon, $mday, $MAX_DELAY);
+
+  if ( $args->{op} eq 'remind' ) {
+
+		my $scipers;
+		my ($dd, $mm, $yy);
+		foreach my $param ( keys %$args ) {
+				my ($label, $sciper) = split /_/, $param;
+				next unless $label eq 'scipertodo';
+				next unless $args->{$param};
+				$scipers->{$sciper} = 1;
+		}
+		error ('No selection for this missing') unless scalar keys %$scipers;
+		my ($dd, $mm, $yy) = split /\//, $args->{nxtdelay};
+									 $dd =~ s/^0//;
+									 $mm =~ s/^0//;
+		error ('Wrong limit date, use dd/mm/yyyy syntax') unless Date::Calc::check_date ($yy, $mm, $dd);
+  	my $nxtdelay = sprintf "%04d-%02d-%02d", $yy, $mm, $dd;
+  	my $nxtdelay_txt = Date::Calc::Date_to_Text_Long($yy, $mm, $dd);
+
+		#	- update reminders
+		foreach my $prof ( @profsLoop ) {
+			my $sciper = $prof->{sciper};
+			next unless $sciper && $scipers->{$sciper};
+			my $sql;
+			if ( $prof->{reminddate} ) {
+				$sql = qq{update reminders set nxtdelay=? where year=? and persid=?};
+			} else {
+				$sql = qq{insert into reminders set nxtdelay=?, year=?, persid=?};
+			}
+			my $sth = $dbh->prepare ($sql);
+			error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+			my  $rv = $sth->execute (($nxtdelay, $yeartodo, $sciper));
+			error ("Unable to execute on database : $dbh->{errmsg}\n") unless $rv;
+
+			my ($year,$month,$day, $hour,$min,$sec) = Date::Calc::Today_and_Now();; 
+			$prof->{reminddate} = sprintf "%04d-%02d-%02d %02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec; 
+			$prof->{nxtdelay} 	= $nxtdelay; 
+
+			#	- update logs
+			write_logs ($sciper, "notify reminder on $nxtdelay");
+
+			my $subj 	 = qq{Professors activities disclosure missing : $yeartodo};
+			my $msg 	 = qq{
+			Dear Professor $prof->{firstname} $prof->{lastname},<br>
+			<br>
+			It seems that your annual disclosure of outside activities has not been uploaded by the official March 31<sup>st</sup> deadline.<br>
+			<br>
+			Kindly take care of this matter by <b>$nxtdelay_txt</b>, after which we shall have to inform your Dean.<br>
+      <br>
+			Best regards,<br>
+			Faculty Affairs
+			};
+
+			sendmail ( $emails->{$sciper}, $subj, $msg );
+
+			($limit_yy, $limit_mm, $limit_dd) = Date::Calc::Add_Delta_Days ($yy, $mm, $dd, $MAX_DELAY);
+			
+			$recipients->{$emails->{$sciper}} = 1 if $emails->{$sciper};
+			
+		}
+  }
+
+	my $dest = join ",", keys %$recipients;
+#	error ('No recipients to notify') unless $dest;
+
+	$template->param(sRecipients => $dest);
+  $template->param(profsLoop 	 => \@profsLoop);
+  $template->param(sYearToDo 	 => $yeartodo);
+  $template->param(sPathMe 	 	 => $me);
+  $template->param(sMsg 		 	 => $msg);
+  $template->param(sCrtYear	 	 => $yeartodo eq ($year-1));
+  $template->param(sLimitDate	 => sprintf "%02d/%02d/%04d", $limit_dd, $limit_mm, $limit_yy);
+
+  print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+  exit;
+}
+
+#_________________
+sub list {
+	my $yeartodo = shift;
+
+  error ('No access to this function') unless $CurrentUser->{isroot};
+  $yeartodo = $args->{'yeartodo'} if $args->{'yeartodo'};
+  error ('Year todo not specified') unless $yeartodo;
+  
+#  my $actByProf = getSubmitted($yeartodo);
+  my $actByProf 		= getAllAct($yeartodo);
+  my $crtyrprofs		= scalar keys %$actByProf;
+  my @scipers				= keys %$actByProf;
+  my $yearProfIdents= $Persons->getManyPersonsInfos(@scipers);
+
+  my $sent = 0;
+  my $notsent = 0;
+  my @profsLoop;
+  foreach my $sciper ( sort { $yearProfIdents->{$a}->{name}.$yearProfIdents->{$a}->{firstname} cmp $yearProfIdents->{$b}->{name}.$yearProfIdents->{$b}->{firstname} } keys %$yearProfIdents ) 
+  {
+  	my $person 		= $yearProfIdents->{$sciper};
+  	my $submitted = $actByProf->{$sciper}->[0]->{status} eq $SENT ? $actByProf->{$sciper}->[0]->{ts} : '';
+  	if ($submitted) {
+  		$sent++ ;
+  	} else {
+	  	$notsent++ ;
+  	}
+  	my $donebyroot= $actByProf->{$sciper}->[0]->{doneby};
+  	push @profsLoop, {
+			sPathMe 	=> $me, 
+  		sciper 		=> $person->{sciper},
+  		lastname 	=> $person->{name},
+  		firstname => $person->{firstname},
+  		submitted => $submitted,
+  		donebyroot=> $donebyroot,
+  		yeartodo 	=> $yeartodo,
+			remarks		=> $allRemarks->{$yeartodo}->{$person->{sciper}}->{remark}, 
+			prof_remarks=> $allRemarks->{$yeartodo}->{$person->{sciper}}->{prof_remark}, 
+  	};
+  }
+
+	my $allprofs  = scalar keys %$profsAccreds;
+  my $missing		= $allprofs - $crtyrprofs;
+
+  my $template = initTempl('profsact_root_list.tmpl');
+  $template->param(profsLoop => \@profsLoop);
+  $template->param(sYearToDo => $yeartodo);
+  $template->param(sPathMe 	 => $me);
+  $template->param(sMsg 		 => $msg);
+  $template->param(sent			 => $sent);
+  $template->param(notsent	 => $notsent);
+  $template->param(missing	 => $missing);
+  $template->param(sCrtYear	 => $yeartodo eq ($year-1));
+
+  print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+  exit;
+}
+
+#_________________
+sub search {
+
+  error ('No access to this function') unless $CurrentUser->{isroot};
+  my $search_item = $args->{'search_item'};
+     $search_item = $args->{'search_item'} unless $search_item;
+  error ('No search key') unless $search_item;
+  
+  my $users;
+  if ( $search_item =~ m/$REGEX_SCIPER/) {
+  	my $user = getUserBySciper($search_item);
+  	$users->{$search_item} = $user if $user;
+  } else {
+  	$users = getUsersByName ($search_item);
+  }
+  
+  error ("no results for : $search_item") unless $users;
+  
+  my @outloop;
+  foreach my $sciper ( keys %$users ) {
+	my $isprof = 'professor' if $users->{$sciper}->{isprof};
+	push @outloop, {
+				sPathMe 	=> $me, 
+				sciper 		=> $sciper,
+				scipertodo=> $sciper,
+				lastname 	=> $users->{$sciper}->{lastname},
+				firstname => $users->{$sciper}->{firstname},
+				email 		=> $users->{$sciper}->{email},
+				isprof 		=> $isprof,
+			};
+  } 
+
+  my $template;
+  if 	  ( $CurrentUser->{isroot} ) {
+  		if (scalar @outloop == 1 ) {	#	- one result
+				$template 		 = initTempl('profsact_root_main.tmpl');
+				my @years_loop = sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($outloop[0]->{sciper});
+				$template->param(scipertodo	 => $outloop[0]->{sciper});
+				$template->param(sOutLoop	 	 => \@outloop);
+				$template->param(sNomToDo	 	 => $outloop[0]->{lastname});
+				$template->param(sPrenomToDo => $outloop[0]->{firstname});
+				$template->param(sYearsLoop	 => \@years_loop);
+  		} else {
+				$template 		 = initTempl('profsact_root_list.tmpl');
+				$template->param(sSearch	 	 => $search_item);
+				$template->param(sOutLoop	 	 => \@outloop);
+  		}
+  } elsif ( $CurrentUser->{isprof} ) {
+		my $scipertodo = $args->{'scipertodo'} ? $args->{'scipertodo'} : $CurrentUser->{sciper};
+		my $yeartodo   = $args->{'yeartodo'} ? $args->{'yeartodo'} : $yeartodo;
+		my $prof_act   = getProfAct ($scipertodo, $yeartodo);
+		my @items;
+		foreach my $index (sort keys %$prof_act) {
+			push @items, { activity => $prof_act->{$index}->{activity}, principal => $prof_act->{$index}->{principal}, index => $index, } ;
+		}
+		push @items, { activity => '', principal => '', index => 1, } unless @items;
+
+		$template = initTempl('profsact_det.tmpl');
+		$template->param(sItemsLoop	=> \@items);
+
+  } else {
+  	error ("$err_msgs->{noaccess}") ;
+  }
+  
+  $template->param(sPathMe => $me);
+  $template->param(sMsg 	 => $msg);
+  
+  print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+  exit;
+}
+
+#_________________
+sub getAllRemarks {
+	my $remarks;
+  my $sql = qq{select * from remarks};
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ();
+  error ("Unable to execute database : $dbh->{errmsg}\n") unless $rv;
+  while (my $entry = $sth->fetchrow_hashref) {
+    $remarks->{$entry->{year}}->{$entry->{persid}} = $entry;
+  }
+  return $remarks;
+	
+}
+
+#_________________
+sub remarks {
+
+	my $scipertodo = $args->{'scipertodo'} ;
+#	error ('No access to this function') unless $CurrentUser->{isroot} ;
+	my $yeartodo 	 = $args->{'yeartodo'} ;
+	error ('No access yeartodo') unless $yeartodo ;
+	
+	my $remarks		  = $args->{'remarks'} ;
+	my $remark_type = $CurrentUser->{isroot} ? 'remark' : 'prof_remark';
+
+#warn "--> remarks :: $scipertodo, $yeartodo :: $remarks	\n";	
+	my $sql;
+	if ( defined $allRemarks->{$yeartodo}->{$scipertodo} ) {
+		$sql = qq{update remarks set $remark_type=?, doneby=? where persid=? and year=? };
+	} else {
+		$sql = qq{insert into remarks set $remark_type=?, doneby=?, persid=?, year=? };
+	}
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ($remarks, $CurrentUser->{sciper}, $scipertodo, $yeartodo);
+  error ("Unable to update database : $dbh->{errmsg}\n") unless $rv;
+
+	write_logs ($scipertodo, "remarks $yeartodo");
+	
+	print qq{
+	<script>
+	location.href="$me";
+	</script>
+	};
+
+}
+
+#_________________
+sub history {
+
+	my $scipertodo 	= $args->{'scipertodo'} ? $args->{'scipertodo'} :  $CurrentUser->{sciper};
+	error ('No access to this function') unless $CurrentUser->{isroot} || $CurrentUser->{sciper} eq $scipertodo;
+#warn "--> history  for $scipertodo\n";
+
+	my $prof_act  = getProfHistory ($scipertodo);
+	my $retHTML = qq{<h3>Activity history</h3>
+		<div class="row">
+		<div class="col-md-2 box_title grey">Created</div>
+		<div class="col-md-1 box_title grey">Order</div>
+		<div class="col-md-4 box_title grey">Activity</div>
+		<div class="col-md-4 box_title grey">Principal</div>
+		<div class="col-md-1 box_title grey">Status</div>
+		</div>
+	};
+	foreach my $item (sort { $b->{ts}.$b->{ordre} cmp $a->{ts}.$a->{ordre} } @$prof_act) {
+		my $status = $item->{status} eq '2' 
+					? 'submitted' 
+					: $item->{status} eq '1' 
+					? 'pending'
+					: 'replaced';
+		$retHTML .= qq{
+		<div class="row underlined">
+		<div class="col-md-2">$item->{ts}</div>
+		<div class="col-md-1">$item->{ordre}</div>
+		<div class="col-md-4">$item->{activity}</div>
+		<div class="col-md-4">$item->{principal}</div>
+		<div class="col-md-1">$status</div>
+		</div>
+		};
+	}
+	$retHTML .= qq{</div>};
+
+	print "Content-Type: text/html; charset=ISO-8859-1\n\n", $retHTML;
+	exit;
+
+}
+
+#_________________
+sub clone {
+
+	my $UserTodo = $args->{'scipertodo'} ? getUserBySciper($args->{'scipertodo'}) : $CurrentUser;
+	error ('No access to this function') unless $UserTodo->{isprof} || $UserTodo->{isroot};
+	my $fromyear = $args->{'fromyear'};
+	error ('Source year undefined') unless $fromyear;
+
+	my $profActByYear = getAllProfAct ($UserTodo->{sciper});
+	my $crt_act			  = $profActByYear->{$yeartodo};
+	my $act_to_clone  = $profActByYear->{$fromyear};
+
+	if ($args->{index}) {
+		error ('Activity not found') unless defined $act_to_clone->{$args->{index}};
+		my @crt_activities = sort keys %$crt_act;
+		my $last_order = pop @crt_activities;
+			 $last_order++;
+
+		my $sql = qq{insert into profsacts set
+				 persid = ?,
+					 year = ?,
+				 status = ?,
+						 ts = now(),
+					ordre = ?,
+			 activity = ?,
+			principal = ?,
+				 doneby = ?
+		};
+#		my $doneby = $UserTodo->{sciper} if $scipertodo ne $UserTodo->{sciper} ;
+		my $sth 	 = $dbh->prepare ($sql);
+		error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+		my  $rv 	 = $sth->execute ( 
+			$UserTodo->{sciper}, 
+			$yeartodo, 
+			$PENDING, 
+			$last_order, 
+			$act_to_clone->{$args->{index}}->{activity}, 
+			$act_to_clone->{$args->{index}}->{principal},
+			$UserTodo->{sciper} 
+		);
+		error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+	} else {
+		putProfAct ($yeartodo, $act_to_clone);
+	}
+
+	$me =~ s/\/clone.*$//;
+	$me.= qq{/search?search_item=$UserTodo->{sciper}} if $CurrentUser->{isroot} ;
+
+	print qq{
+	<script>
+	location.href="$me";
+	</script>
+	};
+
+	exit;
+	
+	my @years_loop = getProfActDataLoop ($UserTodo->{sciper});
+
+	my $template 	= initTempl('profsact_main.tmpl');
+	$template->param(sNomToDo	 	 => $UserTodo->{lastname});
+	$template->param(sPrenomToDo => $UserTodo->{firstname});
+	$template->param(sYearsLoop	 => \@years_loop);
+
+	print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+	exit;
+
+}
+
+sub clone_OLD {
+
+#	error ('No access to this function') unless $CurrentUser->{isprof};
+	my $fromyear = $args->{'fromyear'};
+	error ('Source year undefined') unless $fromyear;
+warn "--> clone fromyear $fromyear for $CurrentUser->{sciper}, index=$args->{index})\n";
+
+	my $profActByYear = getAllProfAct ($CurrentUser->{sciper});
+	my $crt_act			  = $profActByYear->{$yeartodo};
+	my $act_to_clone  = $profActByYear->{$fromyear};
+
+warn "--> clone\n".Dumper($act_to_clone);
+
+	if ($args->{index}) {
+		error ('Activity not found') unless defined $act_to_clone->{$args->{index}};
+		my @crt_activities = sort keys %$crt_act;
+		my $last_order = pop @crt_activities;
+			 $last_order++;
+
+		my $sql = qq{insert into profsacts set
+				 persid = ?,
+					 year = ?,
+				 status = ?,
+						 ts = now(),
+					ordre = ?,
+			 activity = ?,
+			principal = ?,
+				 doneby = ?
+		};
+#		my $doneby = $CurrentUser->{sciper} if $scipertodo ne $CurrentUser->{sciper} ;
+		my $sth 	 = $dbh->prepare ($sql);
+		error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+		my  $rv 	 = $sth->execute ( 
+			$CurrentUser->{sciper}, 
+			$yeartodo, 
+			$PENDING, 
+			$last_order, 
+			$act_to_clone->{$args->{index}}->{activity}, 
+			$act_to_clone->{$args->{index}}->{principal},
+			$CurrentUser->{sciper} 
+		);
+		error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+	} else {
+		putProfAct ($yeartodo, $act_to_clone);
+	}
+
+	my @years_loop = getProfActDataLoop ($CurrentUser->{sciper});
+
+	my $template 	= initTempl('profsact_main.tmpl');
+	$template->param(sNomToDo	 	 => $CurrentUser->{lastname});
+	$template->param(sPrenomToDo => $CurrentUser->{firstname});
+	$template->param(sYearsLoop	 => \@years_loop);
+
+	print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+	exit;
+
+}
+
+#_________________
+sub extract {
+
+	error ('No access to this function') unless $CurrentUser->{isroot};
+	my $yeartodo 		= $args->{'yeartodo'};
+	my $scipertodo 	= $args->{'scipertodo'};
+
+	my $output = qq{year\tsciper\torder\tactivity\tprincipal\n};
+	my $file_name;
+	my $output;
+	if ($yeartodo) {
+		error ('Source year undefined') unless $yeartodo;
+		my $submittedActs = getSubmitted($yeartodo);
+		my $units 				= getUnits ($profsAccreds) ;
+		
+		my $dataSource;
+		my @scipers;
+		my $allroles;
+		if ( $args->{'what'} eq 'missing' ) {
+			$dataSource = $profsAccreds;
+			$file_name  = qq{prof_missing_decl_${yeartodo}.csv};
+
+			$allroles		   		 = $Roles->getRoles( () )  ;
+			my $resps 			   = $allroles->{$ROLE_RESPIT};
+			my @resps_scipers	 = map { keys %{$resps->{$_}}  } keys %$resps;
+			my $admins 				 = $allroles->{$ROLE_ADMINIT};
+			my @admins_scipers = map { keys %{$admins->{$_}} } keys %$admins;
+
+			@scipers					 = ( keys %$dataSource, @resps_scipers, @admins_scipers );
+
+		} else {
+			$dataSource = $submittedActs;
+			$file_name  = qq{prof_decl_${yeartodo}.csv};
+			@scipers		= keys %$dataSource;
+		}
+		my %seen;
+		@scipers = grep { !$seen{$_}++ } @scipers;
+
+		my $persData= $Persons->getManyPersonsInfos(@scipers);
+
+		$output = $args->{'what'} eq 'missing' 
+						? qq{year\tsciper\tname\tfirstname\tunit\trespIT\tadminIT\n} 
+						: qq{year\tsciper\tname\tfirstname\tunit\torder\tactivity\tprincipal\n};
+
+		foreach my $sciper ( sort { $persData->{$a}->{name}.$persData->{$a}->{firstname} cmp $persData->{$b}->{name}.$persData->{$b}->{firstname} } keys %$dataSource ) {
+
+			if ( $args->{'what'} eq 'missing' ) {
+				next if $submittedActs->{$sciper};
+
+				my $unitResps  = $allroles->{$ROLE_RESPIT}->{$profsAccreds->{$sciper}};
+				my $unitAdmins = $allroles->{$ROLE_ADMINIT}->{$profsAccreds->{$sciper}};
+				my $resps  = join ",", map { "$persData->{$_}->{name} $persData->{$_}->{firstname}" } keys %$unitResps;
+				my $admins = join ",", map { "$persData->{$_}->{name} $persData->{$_}->{firstname}" } keys %$unitAdmins;
+
+				$output .= qq{$yeartodo\t$sciper\t$persData->{$sciper}->{name}\t$persData->{$sciper}->{firstname}\t$units->{$profsAccreds->{$sciper}}\t$resps\t$admins\n};
+				
+			} else {
+				my $prof_data = $submittedActs->{$sciper};
+				foreach my $row ( sort { $a->{ordre} <=> $b->{ordre} } @$prof_data  ) {
+					$row->{activity}  =~ s/\t/ /g;
+					$row->{principal} =~ s/\t/ /g;
+					$row->{activity}  =~ s/\n/ /g;
+					$row->{principal} =~ s/\n/ /g;
+					$row->{activity}  =~ s/\r/ /g;
+					$row->{principal} =~ s/\r/ /g;
+
+					$row->{activity}  =~ s/&amp;/&/g;
+					$row->{principal} =~ s/&amp;/&/g;
+#					$row->{activity}  = encode('UTF-8', $row->{activity});
+#					$row->{principal} = encode('UTF-8', $row->{principal});
+
+					$output .= qq{$yeartodo\t$sciper\t$persData->{$sciper}->{name}\t$persData->{$sciper}->{firstname}\t$units->{$profsAccreds->{$sciper}}\t$row->{ordre}\t$row->{activity}\t$row->{principal}\n};
+				}
+			}
+		}
+
+	} else {
+		error ('Professor sciper not defined') unless $scipertodo;
+		my $submittedActs = getAllProfAct($scipertodo);
+
+	  $output = qq{year\tsciper\torder\tactivity\tprincipal\n};
+	
+		foreach my $year ( sort keys %$submittedActs ) {
+			foreach my $index ( sort keys %{$submittedActs->{$year}} ) {
+				$submittedActs->{$year}->{$index}->{activity}  =~ s/\t/ /g;
+				$submittedActs->{$year}->{$index}->{principal} =~ s/\t/ /g;
+				$submittedActs->{$year}->{$index}->{activity}  =~ s/\n/ /g;
+				$submittedActs->{$year}->{$index}->{principal} =~ s/\n/ /g;
+				$submittedActs->{$year}->{$index}->{activity}  =~ s/\r/ /g;
+				$submittedActs->{$year}->{$index}->{principal} =~ s/\r/ /g;
+
+				$submittedActs->{$year}->{$index}->{activity}  =~ s/&amp;/&/g;
+				$submittedActs->{$year}->{$index}->{principal} =~ s/&amp;/&/g;
+#				$submittedActs->{$year}->{$index}->{activity}  = encode('UTF-8', $submittedActs->{$year}->{$index}->{activity});
+#				$submittedActs->{$year}->{$index}->{principal} = encode('UTF-8', $submittedActs->{$year}->{$index}->{principal});
+
+				$output .= qq{$year\t$scipertodo\t$index\t$submittedActs->{$year}->{$index}->{activity}\t$submittedActs->{$year}->{$index}->{principal}\n};
+			}
+		}
+		$file_name = qq{prof_decl_${yeartodo}_${scipertodo}.csv};
+	}
+	
+	print "Content-Type:application/x-download\n";
+	print "Content-Disposition:attachment;filename=$file_name\n\n";
+	print $output;
+
+	exit;
+
+}
+
+#_________________
+sub save {
+
+#	error ('No access to this function') unless $CurrentUser->{isprof};
+	my $yeartodo = $args->{year};
+
+  unless ($args->{save_apr_remarks}) {
+		my $items;	  
+		foreach my $param ( keys %$args ) {
+			my ($label, $index) = split /_/, $param;
+			next unless $label ;
+			$label =~ s/$yeartodo//;
+			$items->{$index}->{$label} = $args->{$param};
+		}
+	
+		my $data;
+		my $ordre = 1;
+		foreach my $index ( sort { $a cmp $b } keys %$items ) {
+			next unless $items->{$index}->{activity} ;
+			$data->{$ordre}->{activity}  = $items->{$index}->{activity};
+			$data->{$ordre}->{principal} = $items->{$index}->{principal};
+			$ordre++;
+		}
+		
+		putProfAct ($yeartodo, $data);
+  }
+
+	my $remarks		  = $args->{'remarks'} ;
+	my $remark_type = $CurrentUser->{isroot} ? 'remark' : 'prof_remark';
+	my $doneby			= $CurrentUser->{sciper} if $CurrentUser->{isroot}; 
+	my $sql;
+	if ( defined $allRemarks->{$yeartodo}->{$args->{scipertodo}} ) {
+		$sql = qq{update remarks set $remark_type=?, doneby=? where persid=? and year=? };
+	} else {
+		$sql = qq{insert into remarks set $remark_type=?, doneby=?, persid=?, year=? };
+	}
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ($remarks, $doneby, $args->{scipertodo}, $yeartodo);
+  error ("Unable to update database : $dbh->{errmsg}\n") unless $rv;
+	write_logs ($args->{scipertodo}, "$remark_type $yeartodo");
+
+	$me =~ s/\/save//;
+	print qq{
+	<script>
+	location.href="$me";
+	</script>
+	};
+	
+}
+
+#_________________
+sub getReminders {
+	my $yeartodo = shift;
+	return unless $yeartodo;
+	
+  my $sql = qq{select * from reminders where year=?};
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute (($yeartodo));
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+	my $reminders;
+  while (my $entry = $sth->fetchrow_hashref) {
+    $reminders->{$entry->{persid}} = $entry;
+  }
+  return $reminders;
+
+}
+
+#_________________
+sub getProfsAccreds {
+	my $yeartodo 	 = shift ;
+
+  my $profsAccreds;
+  my $sql = qq{select distinct persid, unitid, ordre, debval, finval from accreds where classid=$classid and
+  				((debval >= '$yeartodo-01-01' and debval < '$yeartodo-12-31') or
+  				 (debval <  '$yeartodo-01-01' and (finval is null or finval > '$yeartodo-12-31')) or
+  				 (finval >  '$yeartodo-01-01' and finval <= '$yeartodo-12-31')
+  				)  order by persid, ordre };
+  my $sth = $dbaccrh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ();
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  my $profsAccreds;
+  while (my $entry = $sth->fetchrow_hashref) {
+# 		next if $exclude_scipers =~ /$entry->{persid}/;
+  	if ( $entry->{finval} ) {
+  		my ($Dd,$Dh,$Dm,$Ds) = getAccredDuration ($yeartodo, $entry);
+  		next if $Dd < 30;
+# warn "$entry->{persid}: $entry->{debval}:$entry->{finval} :  ($Dd,$Dh,$Dm,$Ds)\n" if $exclude_scipers =~ /$entry->{persid}/; 		
+  	}
+    $profsAccreds->{$entry->{persid}} = $entry->{unitid} unless defined $profsAccreds->{$entry->{persid}} ;
+  }
+  
+  #	- handle exceptions
+  my $sql = qq{select distinct persid, unitid, ordre, debval, finval from accreds where 
+  				((debval >= '$yeartodo-01-01' and debval < '$yeartodo-12-31') or
+  				 (debval <  '$yeartodo-01-01' and (finval is null or finval > '$yeartodo-12-31')) or
+  				 (finval >  '$yeartodo-01-01' and finval <= '$yeartodo-12-31')
+  				)  and persid in ($add_scipers) order by persid, ordre };
+  my $sth = $dbaccrh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ();
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  while (my $entry = $sth->fetchrow_hashref) {
+  	if ( $entry->{finval} ) {
+  		my ($Dd,$Dh,$Dm,$Ds) = getAccredDuration ($yeartodo, $entry);
+  		next if $Dd < $MINPROFACCRED;
+  	}
+    $profsAccreds->{$entry->{persid}} = $entry->{unitid} unless defined $profsAccreds->{$entry->{persid}} ;
+  }
+ 
+  return $profsAccreds;
+
+}
+
+#_________________
+sub getAccredDuration {
+	my ($yeartodo, $entry) = @_;
+
+	$entry->{debval} = "$yeartodo-01-01 00:00:00" if $entry->{debval} lt "$yeartodo-01-01 00:00:00" ;
+	my ($date1, $time1) = split / /, $entry->{debval};
+	$date1 =~ s/\-0/-/g; $time1 =~ s/\:0/:/g;
+	my ($yy1, $mm1, $dd1) = split /-/, $date1; my ($hh1, $min1, $sec1) = split /-/, $time1;
+	my ($date2, $time2) = split / /, $entry->{finval};
+	$date2 =~ s/\-0/-/g; $time2 =~ s/\:0/:/g;
+	my ($yy2, $mm2, $dd2) = split /-/, $date2; my ($hh2, $min2, $sec2) = split /-/, $time2;
+
+	return Date::Calc::Delta_DHMS ( 
+		$yy1,$mm1,$dd1,$hh1,$min1,$sec1,
+		$yy2,$mm2,$dd2,$hh2,$min2,$sec2
+	);
+}
+
+#_________________
+sub getUnits {
+	my $accreds = shift ;
+	
+	my %unites = map { $accreds->{$_}  => 1 } keys %$accreds;
+	my $unitids= join ",", keys %unites;
+
+  my $sql = qq{select id_unite, hierarchie from dinfo.unites1 where id_unite in ($unitids)};
+  my $sth = $dbaccrh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ();
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  my $units;
+  while (my $entry = $sth->fetchrow_hashref) {
+    $units->{$entry->{id_unite}} = substr ($entry->{hierarchie}, 5 );
+  }
+  return $units;
+
+}
+
+#_________________
+sub getAllYears {
+
+  my $sql = qq{select distinct year from profsacts where status <> ?};
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ($INACT);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  my @years;
+  while (my $entry = $sth->fetchrow_hashref) {
+    push @years, { year => $entry->{year}, sPathMe => $me, };
+  }
+  return @years;
+
+}
+
+#_________________
+sub getSubmitted {
+  my ($yeartodo) = @_;
+  error ('year to do not specified') unless $yeartodo;
+
+  my $sql = qq{select * from profsacts where year=? and status = ? };
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ($yeartodo, $SENT);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  my $rows;
+  while (my $entry = $sth->fetchrow_hashref) {
+    push @{$rows->{$entry->{persid}}}, $entry;
+  }
+  return $rows;
+
+}
+#_________________
+sub getAllAct {
+  my ($yeartodo) = @_;
+  error ('year to do not specified') unless $yeartodo;
+
+  my $sql = qq{select * from profsacts where year=? and status <> '0' order by status desc};
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ($yeartodo);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  my $rows;
+  while (my $entry = $sth->fetchrow_hashref) {
+    push @{$rows->{$entry->{persid}}}, $entry;
+  }
+  return $rows;
+
+}
+
+#_________________
+sub getAllProfAct {
+  my ($scipertodo) = @_;
+  error ('person identity not specified') unless $scipertodo;
+
+  my $sql = qq{select * from profsacts where persid=? and status <> ? };
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ($scipertodo, $INACT);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  my $rows;
+  while (my $entry = $sth->fetchrow_hashref) {
+    my $order = $entry->{ordre};
+    $rows->{$entry->{year}}->{$order}->{activity}  = $entry->{activity};
+    $rows->{$entry->{year}}->{$order}->{principal} = $entry->{principal};
+    $rows->{$entry->{year}}->{$order}->{status}    = $entry->{status};
+    $rows->{$entry->{year}}->{$order}->{ts}    	   = $entry->{ts};
+    $rows->{$entry->{year}}->{$order}->{doneby}    = $entry->{doneby};
+  }
+  return $rows;
+
+}
+
+#_________________
+sub getProfAct {
+  my ($scipertodo, $yeartodo) = @_;
+#  $type = $PENDING unless $type;
+#warn "--> getProfAct : $scipertodo, $yeartodo\n";
+
+  my $sql = qq{select * from profsacts  where persid=? and year=? and status=?  };
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n$sql\n") unless $sth;
+  my  $rv = $sth->execute ($scipertodo, $yeartodo, $SENT);
+  error ("Unable to execute command to database : $dbh->{errmsg}\n($scipertodo, $yeartodo, $SENT)\n") unless $rv;
+  my $rows;
+  while (my $entry = $sth->fetchrow_hashref) {
+    my $order = $entry->{ordre};
+    $rows->{$order} = $entry;
+  }
+  return $rows;
+
+}
+
+#_________________
+sub getProfHistory {
+  my ($scipertodo) = @_;
+#warn "--> getProfHistory : $scipertodo\n";
+
+  my $sql = qq{select * from profsacts  where persid = ? };
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ($scipertodo);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  my @rows;
+  while (my $entry = $sth->fetchrow_hashref) {
+#warn "   $entry->{persid} :: $entry->{ts}, $entry->{status} : $entry->{activity}\n";
+    push @rows, $entry;
+  }
+  return \@rows;
+
+}
+
+#_________________
+sub putProfAct {
+  my ($yeartodo, $data) = @_;
+
+	my $scipertodo = $CurrentUser->{sciper};
+	   $scipertodo = $args->{scipertodo} if $CurrentUser->{isroot} && $args->{scipertodo};
+
+	#	- all current year act inactive
+  my $sql = qq{update profsacts set status=? where persid=? and year=? and status <> ?};
+  my $sth = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ($INACT, $scipertodo, $yeartodo, $INACT);
+  error ("Unable to update database : $dbh->{errmsg}\n") unless $rv;
+
+  my $status = $args->{submit} ? '2' : '1';
+  my $sql = qq{insert into profsacts set
+  		 persid = ?,
+         year = ?,
+       status = ?,
+           ts = now(),
+        ordre = ?,
+     activity = ?,
+    principal = ?,
+       doneby = ?
+  };
+	my $doneby = $CurrentUser->{sciper} if $scipertodo ne $CurrentUser->{sciper} ;
+  my $sth 	 = $dbh->prepare ($sql);
+  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my $items  = 0;
+  foreach my $row (sort { $a <=> $b } keys %$data) {
+    my  $rv = $sth->execute ( $scipertodo, $yeartodo, $status, $row, $data->{$row}->{activity}, $data->{$row}->{principal}, $doneby );
+    error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+    $items++;
+  }
+  
+  if ($args->{submit} && $items == 0) {
+    my  $rv = $sth->execute ( $scipertodo, $yeartodo, $status, '1', 'N/A', 'N/A', $doneby );
+  }
+
+  my $msg;
+  if ( $scipertodo ne $CurrentUser->{sciper} ) {
+
+  	my $user = getUserBySciper($scipertodo);
+  	error ("person not found") unless $user;
+
+	  my $subj = "APR modification - annual disclosure of outside activities $yeartodo";
+		$msg 		 = qq{
+		Dear Professor $user->{firstname} $user->{lastname},<br>
+		<br>
+		Your $yeartodo annual disclosure has been modified/updated by Faculty Affairs staff.<br>
+		You may check it on <a href="$URL">this page</a><br>
+		<br>
+		Best regards,<br>
+		<br>
+		EPFL Faculty Affairs
+		};
+
+		write_logs ($scipertodo, "APR $yeartodo act update ($items items)");
+  	
+  	sendmail ( $user->{email}, $subj, $msg );
+	} else {
+
+		write_logs ($scipertodo, "$yeartodo act update ($items items)");
+
+		if ( $args->{submit} ) {
+			my $subj = "$CurrentUser->{firstname} $CurrentUser->{lastname} disclosure $yeartodo = ok";
+			$msg 		 = qq{
+			Dear Professor $CurrentUser->{firstname} $CurrentUser->{lastname},<br>
+			<br>
+			Your $yeartodo annual disclosure of outside activities has been submitted successfully.<br>
+			<br>
+			Thank you and best regards,<br>
+			<br>
+			EPFL Faculty Affairs
+			};
+			sendmail ( $CurrentUser->{email}, $subj, $msg );
+			write_logs ($scipertodo, "$yeartodo act submitted ($items items)");
+		}
+
+	}
+  return 1;
+}
+
+#_________________----------
+sub initTempl {
+  my ($tmpl) = @_;
+
+  my $errMsg;
+  my $template_file = $tmpldir.$tmpl;
+  unless  (-f $template_file) {
+   $errMsg = "template file not found [$template_file]";
+   $template_file = "${tmpldir}profsact_def.tmpl";
+  }
+
+  my $template = HTML::Template->new(filename => $template_file,
+	   strict => 0,
+	   cache => 1,
+	   die_on_bad_params => 0) or die "err : $!";
+  $template->param(serrMsg 		=> $errMsg);
+  $template->param(sPathMe 		=> $me);
+  $template->param(isRoot	 		=> $CurrentUser->{isroot});
+  $template->param(sYear 			=> $year);
+  $template->param(sYearToDo	=> $yeartodo);
+  $template->param(isCrtYear	=> $yeartodo eq $year);
+  $template->param(sLimitYear	=> $limit_year);
+  $template->param(scipertodo	=> $CurrentUser->{sciper});
+  $template->param(sNom 			=> $CurrentUser->{lastname});
+  $template->param(sPrenom 		=> $CurrentUser->{firstname});
+  $template->param(yearsLoop 	=> \@yearsLoop);
+  $template->param(sNxtDelay 	=> $LASTDATE);
+
+#warn "--> initTempl : scipertodo=$CurrentUser->{sciper}\n";
+
+  if ($errMsg) {
+     print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+     exit;
+  }
+
+  return $template;
+}
+
+#_________________
+sub checkSession {
+  my ($sessionkey) = @_;
+  return unless $PROC;
+  return if $PROC eq 'login';
+
+	my $login_txt = $lang eq 'fr' ? qq{Veuillez refaire l'authentification Tequila} : qq{Please login again on Tequila};
+		 $login_txt = qq{<br><br><a href="$me/login?lang=$lang">$login_txt</a>};
+
+	unless ($sessionkey) {
+		$tequila->logout ();
+		error ($login_txt, 1);  
+	}
+
+	my ($sess, $iv, $tag) = split /:/, $sessionkey;
+  my $gcm = Crypt::GCM->new (
+       -key => pack ('H*', $aeskey),
+    -cipher => 'Crypt::Rijndael',
+  );
+	$gcm->set_iv(pack 'H*', $iv);
+  $gcm->aad('');
+  $gcm->tag(pack 'H*', $tag);
+
+  my $result = $gcm->decrypt (pack 'H*', $sess);
+  my ($ts, $host, $sciper ) = split /;/, unpack 'A*', $result;
+#warn "checkSession ERR sciper : sciper=$sciper, current=$CurrentUser->{sciper} ; $host : $ENV{REMOTE_ADDR}\n";
+
+	unless ( ($sciper && $sciper eq $CurrentUser->{sciper} ) 
+				&& ( $host eq $ENV{REMOTE_ADDR} )
+				&& ( (time - $ts) < $MAX_SESS_DURATION )
+	)
+	{
+warn "checkSession ERR sciper : sciper=$sciper, current=$CurrentUser->{sciper} ; $host : $ENV{REMOTE_ADDR}\n";
+		$tequila->logout ();
+		error ($login_txt, 1);  
+	}
+}
+
+#_________________
+sub makeSession {
+
+  my $value = pack ('A*', time.';'.$ENV{REMOTE_ADDR}.';'.$CurrentUser->{sciper} );
+	my $iv  	= genrandomkey(12);
+  my $gcm 	= Crypt::GCM->new (
+       -key => pack ('H*', $aeskey),
+    -cipher => 'Crypt::Rijndael',
+  );
+  $gcm->aad    ('');
+  $gcm->set_iv ($iv);
+  my $cipher 	= $gcm->encrypt ($value);
+  my $tag 		= $gcm->tag;
+  my $sesstxt = unpack ('H*', $cipher);
+	   $sesstxt = $sesstxt.':'.unpack ('H*', $iv).':'.unpack ('H*', $tag);
+  return $sesstxt;
+  
+}
+
+#_________________
+sub genrandomkey {
+  my $len = shift || 16;
+  my $rand;
+  open (RND, "/dev/urandom") || die "Unable to init random engine : $!";
+  if (sysread (RND, $rand, $len) != $len) { die "Unable to read random bytes : $!"; }
+  close (RND);
+  return $rand;
+}
+
+#_________________
+sub error {
+   my $msg = shift;
+
+   my $template = initTempl('profsact_err.tmpl');
+   $template->param(sMsg => $msg);
+   print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+   exit;
+}
+
+#___________________
+sub escapeParams {
+
+	foreach my $name ( $query->param() ) {
+		$args->{$name} =  $query->param($name);
+	}
+	foreach my $name ( $query->url_param() ) {
+		$args->{$name} =  $query->url_param($name);
+	}
+
+	foreach my $name ( keys %$args ) {
+		my $value = $args->{$name};
+		$value =~ s/\\a/a/ig;
+		$value =~ s/\\a/a/ig;
+		$value =~ s/\\b/b/ig;
+		$value =~ s/\\c/c/ig;
+		$value =~ s/\\d/d/ig;
+		$value =~ s/\\e/e/ig;
+		$value =~ s/\\f/f/ig;
+		$value =~ s/\\j/j/ig;
+		$value =~ s/\\k/k/ig;
+		$value =~ s/\\l/l/ig;
+		$value =~ s/\\o/o/ig;
+		$value =~ s/\\p/p/ig;
+		$value =~ s/\\r/r/ig;
+		$value =~ s/\\s/s/ig;
+		$value =~ s/\\t/t/ig;
+		$value =~ s/\\u/u/ig;
+		$value =~ s/\\v/v/ig;
+		$value =~ s/\\x/x/ig;
+		$value =~ s/\\y/y/ig;
+
+		#	- URI decode
+		$value =~ s/\+/ /g; $value =~ s/&#([A-Fa-f\d]+);/chr $1/eg;
+		
+		checkJSExploits ($value);
+
+		#	- escape HTML 
+		$value =~ s#&#&amp;#g;
+		$value =~ s#<#&lt;#g;
+		$value =~ s#>#&gt;#g;
+		$value =~ s#"&#&quot;#g;
+#		$value =~ s#/#&\#x2F;#g;
+#		$value =~ s#'#&\#x27;#g;
+#warn "--> escapeParams $name=$value\n";
+
+		if ( $name eq 'scipertodo' ) {
+			error ("Illegal value for param : $name=$value\n") unless $value =~ m/$REGEX_SCIPER/ ;
+		}
+		if ( $name eq 'yeartodo' || $name eq 'fromyear' ) {
+			error ("Illegal value for param : $name=$value\n") unless $value =~ m/^2\d\d\d$/ ;
+		}
+
+		$args->{$name} = $value;
+	}
+}
+
+#___________________
+sub checkJSExploits {
+	my $param = shift;
+	return unless $param;
+
+	# - check JS CSS vulnerabilty
+	my $exploittxt = qq{content refused, potential malware or illegal keywords found} ;
+	my @exploits1 = ('FRAME','OBJECT','META','APPLET','LINK','IFRAME');
+	# - check JS events vulnerabilty
+	my @exploits2 = (
+		'onblur',
+		'onchange',
+		'onclick',
+		'oncopy',
+		'oncut',
+		'ondblclick',
+		'ondrag',
+		'ondrop',
+		'onerror',
+		'onfocus',
+		'onkey',
+		'onkeypress',
+		'onload',
+		'onmouse',
+		'onpaste',
+		'onreset',
+		'onresize',
+		'onsearch',
+		'onselect',
+		'onsubmit',
+		'onunload',
+		'oncontext',
+		'oninput',
+		'oninvalid',
+	);
+	my @exploits3 = (
+		'script',
+		'style',
+		'javascript',
+		'audio',
+		'video',
+	);
+
+	$param =~ s/\\a/a/ig;
+	$param =~ s/\\a/a/ig;
+	$param =~ s/\\b/b/ig;
+	$param =~ s/\\c/c/ig;
+	$param =~ s/\\d/d/ig;
+	$param =~ s/\\e/e/ig;
+	$param =~ s/\\f/f/ig;
+	$param =~ s/\\j/j/ig;
+	$param =~ s/\\k/k/ig;
+	$param =~ s/\\l/l/ig;
+	$param =~ s/\\o/o/ig;
+	$param =~ s/\\p/p/ig;
+	$param =~ s/\\r/r/ig;
+	$param =~ s/\\s/s/ig;
+	$param =~ s/\\t/t/ig;
+	$param =~ s/\\u/u/ig;
+	$param =~ s/\\v/v/ig;
+	$param =~ s/\\x/x/ig;
+	$param =~ s/\\y/y/ig;
+
+	#	- URI decode
+
+	$param =~ s/\+/ /g; $param =~ s/&#([A-Fa-f\d]+);/chr $1/eg;
+	$param =~ s/\\//g;
+
+	foreach my $exploit (@exploits1) {
+		 error ($exploittxt.$exploit) if ($param =~ m#<\s*$exploit[^>]*>#i) ;
+	}
+
+	foreach my $exploit (@exploits2) {
+		 if ($param =~ /\b$exploit(enter|up|down|over|out|press)?\s?=/i) {
+warn " ** ERR JS EXPLOIT 2 : exploit=$exploit\n";		   
+				error ($exploittxt);
+		 }
+	}
+
+	foreach my $exploit (@exploits3) {
+		 if ($param =~ m#<\s*$exploit[^>]*>#i) {
+warn " ** ERR JS EXPLOIT 3 : exploit=$exploit\n";		   
+				error ($exploittxt);
+		 }
+	}
+
+}
+
+#_________________
+sub getUsersByName {
+	my ($name) = @_;
+	return unless $name;
+	
+	$name = encode('UTF-8', $name);
+
+  my $persons;
+  foreach my $person ( $Persons->getPersonFromNameLike ($name) ) {
+  	my $sciper = $person->{persid};
+  	my $score  = $person->{score};
+  	next unless $sciper =~ m/$REGEX_SCIPER/;
+  	$persons->{$sciper} = getUserBySciper ($sciper);
+  }
+
+  return $persons;
+
+}
+
+#_________________
+sub getUsersByName_OLD {
+	my ($name) = @_;
+	return unless $name;
+	
+	$name = encode('UTF-8', $name);
+
+  my $persons;
+  foreach my $sciper ( $Persons->findPersons ($name) ) {
+  	next unless $sciper =~ m/$REGEX_SCIPER/;
+  	$persons->{$sciper} = getUserBySciper ($sciper);
+  }
+
+  return $persons;
+
+}
+
+#_________________
+sub getUserBySciper {
+	my ($sciper) = @_;
+
+#warn "--> getUserBySciper A : $sciper\n";
+	return unless $sciper;
+	error ("malformed sciper") unless $sciper =~ m/$REGEX_SCIPER/;
+
+  my $pers = $Persons->getPerson ($sciper);
+  my $isprof;
+  map { $isprof = $_->{accred}->{class} =~ /Corps professoral/ } @{$pers->{accreds}};
+#warn "--> getUserBySciper B : $sciper : isprof=$isprof\n";
+
+	#	- chk all acreds
+	$isprof = 1 if defined $profsAccreds->{$sciper};
+
+	return {
+			sciper		=> $sciper,
+			lastname  => $pers->{name},
+			firstname => $pers->{firstname},
+			email  		=> $pers->{email},	  	
+			isprof	  => $isprof,	  	
+	  };
+
+}
+
+#_____________
+sub sendmail {
+	my ($dest, $subj, $msg) = @_;
+	return unless ($msg);
+
+	my $SENDMAIL_CMD = '/usr/sbin/sendmail';
+
+	my $mailTo  		 = $DEBUG ? $test_email : $dest;
+		 $mailTo			 = $test_email if $TESTMAIL;
+	my $replyTo 		 = 'noreply@epfl.ch';
+
+warn "--> sendmail : TESTMAIL=$TESTMAIL\n";
+warn "mailTo : $mailTo\n";
+warn "dest : $dest\n";
+
+#return;
+
+	eval {
+		open  (MAIL, "| $SENDMAIL_CMD -t -F$replyTo -f$replyTo") or return;
+		print MAIL qq{To: $mailTo\n};
+		print MAIL qq{Cc: $AP_email \n};
+		print MAIL qq{Reply-to: $replyTo
+Subject: $subj
+Content-type: text/html; charset=iso-8859-1
+
+$msg
+		};
+		close (MAIL);
+	} or do {
+		warn "error in mailto [ $dest ] : $@\n"; 
+		error "error in mailto [ $dest ] : $@\n"; 
+	};
+
+}
+
+#	======= PDF ======
+#_____________
+sub pdf {
+
+    print "Content-Type: application/pdf\n\n";
+		my $pdffile = makePDF ();
+		open (PDF, $pdffile);
+		while (<PDF>) {
+			print $_;
+		}
+		close PDF;
+		unlink ($pdffile) if -e $pdffile;
+		exit;
+
+}
+
+#_____________
+sub makePDF {
+		my $activity = shift;
+
+		my $scipertodo = $CurrentUser->{sciper};
+		   $scipertodo = $args->{'scipertodo'} if $args->{'scipertodo'} && $CurrentUser->{isroot};
+#warn "--> makePDF : scipertodo=$scipertodo\n";
+
+		my $yeartodo   = $args->{'yeartodo'} ? $args->{'yeartodo'} : $yeartodo;
+		my $pdf_file 	 = $pdf_dir.$scipertodo.'_'.$yeartodo.'.pdf';
+
+		$pdf 	= PDF::API2->new( -file => $pdf_file ) || error ("Unable to create PDF : $pdf_file");
+		$page = $pdf->page();
+		$gfx 	= $page->gfx;
+		$page->mediabox(842, 595);
+		$page_text = $page->text;
+
+		my $ypos = put_pdf_header ();
+			 $ypos = put_pdf_description ($ypos );		
+			 $ypos = put_pdf_identity ($ypos );		
+			 $ypos = put_pdf_table_header ($ypos );		
+
+		#	- LOOP ON ITEMS
+		my $submitted;
+		my $prof_act   = getProfAct ($scipertodo, $yeartodo);
+#warn "--> makePDF : getProfAct done\n";
+		foreach my $index (sort keys %$prof_act) {
+			next unless $prof_act->{$index}->{status} eq '2';
+			$submitted = $prof_act->{$index}->{ts};
+			
+			if ( $ypos < $BOTTOM ) {
+					$page = $pdf->page();
+					$gfx 	= $page->gfx;
+					$page_text = $page->text;
+					$page->mediabox(842, 595);
+				
+					$page_nb++;
+
+					$ypos = put_pdf_header ();
+					$ypos = put_pdf_table_header ($ypos );		
+			}
+
+			my ( $endw1, $ypos1, $paragraph1 ) = text_block(
+					$page_text,
+					$index,
+					-x        => 20/mm,
+					-y        => $ypos -7/pt,
+					-w        => 20/mm,
+					-h				=> 20/mm,
+					-lead     => $std_lead ,
+					-align    => 'justify',
+				);
+			my ( $endw1, $ypos1, $paragraph1 ) = text_block(
+					$page_text,
+					$prof_act->{$index}->{activity},
+					-x        => 32/mm,
+					-y        => $ypos -7/pt,
+					-w        => 140/mm,
+					-h				=> 20/mm,
+					-lead     => $std_lead ,
+					-align    => 'justify',
+				);
+			my ( $endw2, $ypos2, $paragraph2 ) = text_block(
+					$page_text,
+					$prof_act->{$index}->{principal},
+					-x        => 180/mm,
+					-y        => $ypos -7/pt,
+					-w        => 90/mm,
+					-h				=> 20/mm,
+					-lead     => $std_lead ,
+					-align    => 'justify',
+			);
+
+			$ypos = $ypos1 > $ypos2 ? $ypos2 : $ypos1;
+			$ypos -= 7/mm;
+			$gfx->move(  $LEFT, $ypos );
+			$gfx->line( 280/mm, $ypos );
+			$gfx->stroke;
+
+			$ypos -= 5/mm;
+				
+		}
+
+		#	-- FOOTER
+		$page_text->font( $font{$std_font}{'Bold'}, 9/pt );
+		$page_text->fillcolor('red');
+		my ( $endw, $ypos, $paragraph ) = text_block(
+				$page_text,
+				qq{Date:  $submitted},
+				-x        => $LEFT,
+				-y        => 20/mm,
+				-w        => $std_width,
+				-h				=> 20/mm,
+				-lead     => $std_lead ,
+				-align    => 'justify',
+			);
+#		$gfx->move( 196/mm, 102/mm );
+#		$gfx->line( 272/mm, 102/mm );
+#		$gfx->stroke;
+
+#		( $endw, $ypos, $paragraph ) = text_block(
+#				$page_text,
+#				'Signature:',
+#				-x        => 152/mm,
+#				-y        => 20/mm,
+#				-w        => $std_width,
+#				-h				=> 20/mm,
+#				-lead     => $std_lead ,
+#				-align    => 'justify',
+#			);
+#		$gfx->linedash( 1, 2 );
+#		$gfx->move( 180/mm, 20/mm );
+#		$gfx->line( 275/mm, 20/mm );
+#		$gfx->stroke;
+
+		#	- DONE		
+		$pdf->save;
+		$pdf->end();
+		 
+		$pdf_file;
+
+}
+
+sub put_pdf_table_header {
+	my $ypos = shift;
+
+	#	- TABLE HEADER
+  $ypos -= 5/mm;
+	$gfx->linedash( );
+	$gfx->move(  $LEFT, $ypos );
+	$gfx->line( 280/mm, $ypos );
+	$gfx->move(  $LEFT, $ypos-10/mm );
+	$gfx->line( 280/mm, $ypos-10/mm );
+	$gfx->stroke;
+
+  $ypos -= 7/mm;
+	$page_text->font( $font{$std_font}{'Roman'}, 9/pt );
+	my ( $endw, $ypos1, $paragraph ) = text_block(
+			$page_text,
+			'Type and area of activity (including dual professorships)',
+			-x        => 32/mm,
+			-y        => $ypos,
+			-w        => $std_width,
+			-h				=> 20/mm,
+			-lead     => $std_lead ,
+			-align    => 'justify',
+		);
+	( $endw, $ypos, $paragraph ) = text_block(
+			$page_text,
+			'Name and address of principal (or institution)',
+			-x        => 180/mm,
+			-y        => $ypos,
+			-w        => $std_width,
+			-h				=> 20/mm,
+			-lead     => $std_lead ,
+			-align    => 'justify',
+		);
+
+		return $ypos
+
+}
+
+sub put_pdf_identity {
+
+#	my $profsAccreds 	 = getProfsAccreds($yeartodo);
+	my $scipertodo = $CurrentUser->{sciper};
+	
+	my $name;
+	if ( $CurrentUser->{isroot} && $args->{'scipertodo'} ) {
+		$scipertodo = $args->{'scipertodo'}	;
+  	my $user 		= getUserBySciper($scipertodo);
+  	error ("person not found") unless $user;
+		$name	= "$user->{firstname} $user->{lastname}";
+	} else {
+		$name = "$CurrentUser->{firstname} $CurrentUser->{lastname}";
+	}
+	my $units 		 = getUnits ( { $scipertodo => $profsAccreds->{$scipertodo}, } ) ;
+	my $hierarchie = $units->{$profsAccreds->{$scipertodo}};
+
+	my $ypos = shift;
+	   $ypos -= 7/mm;
+
+	$page_text->font( $font{$std_font}{'Bold'}, 9/pt );
+	$page_text->fillcolor('red');
+	my ( $endw, $ypos1, $paragraph ) = text_block(
+			$page_text,
+			qq{Full Name:  $name},
+			-x        => $LEFT,
+			-y        => $ypos,
+			-w        => $std_width,
+			-h				=> 20/mm,
+			-lead     => $std_lead ,
+			-align    => 'justify',
+		);
+	( $endw, $ypos1, $paragraph ) = text_block(
+			$page_text,
+			qq{EPFL School / College:   $hierarchie},
+			-x        => 180/mm,
+			-y        => $ypos,
+			-w        => $std_width,
+			-h				=> 20/mm,
+			-lead     => $std_lead ,
+			-align    => 'justify',
+		);
+
+		#	- certification line
+		$page_text->fillcolor('black');
+		( $endw, $ypos, $paragraph ) = text_block(
+				$page_text,
+				$pdf_textes[5],
+				-x        => $LEFT,
+				-y        => $ypos - 7/mm,
+				-w        => $std_width,
+				-h				=> 20/mm,
+				-lead     => $std_lead ,
+				-align    => 'justify',
+			);
+
+		return $ypos;
+
+}
+
+sub put_pdf_description {
+	my $ypos = shift;
+
+	#	- DESCRIPTION
+	$page_text->font( $font{$std_font}{'Roman'}, 9.5/pt );
+	my ( $endw, $ypos, $paragraph ) = text_block(
+			$page_text,
+			$pdf_textes[0],
+			-x        => $LEFT,
+			-y        => $ypos - 20/pt,
+			-w        => $std_width,
+			-h				=> 20/mm,
+			-lead     => $std_lead ,
+			-align    => 'justify',
+	);
+	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
+	( $endw, $ypos, $paragraph ) = text_block(
+			$page_text,
+			$pdf_textes[1],
+			-x        => $LEFT,
+			-y        => $ypos - 7/pt,
+			-w        => $std_width,
+			-h				=> 25/mm,
+			-lead     => $small_lead,
+			-align    => 'justify',
+	);
+	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
+	( $endw, $ypos, $paragraph ) = text_block(
+			$page_text,
+			$pdf_textes[2],
+			-x        => $LEFT,
+			-y        => $ypos - 7/pt,
+			-w        => $std_width,
+			-h				=> 25/mm,
+			-lead     => $small_lead,
+			-align    => 'justify',
+	);
+	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
+	( $endw, $ypos, $paragraph ) = text_block(
+			$page_text,
+			$pdf_textes[3],
+			-x        => $LEFT,
+			-y        => $ypos - 7/pt,
+			-w        => $std_width,
+			-h				=> 25/mm,
+			-lead     => $small_lead,
+			-align    => 'justify',
+	);
+	$page_text->font( $font{$std_font}{'Roman'}, 9.5/pt );
+	( $endw, $ypos, $paragraph ) = text_block(
+			$page_text,
+			$pdf_textes[4],
+			-x        => $LEFT,
+			-y        => $ypos - 7/pt,
+			-w        => $std_width,
+			-h				=> 20/mm,
+			-lead     => $std_lead ,
+			-align    => 'justify',
+		);
+
+	return $ypos;
+
+}
+
+sub put_pdf_header {
+
+	%font = (
+		 Helvetica => {
+				 Bold   => $pdf->corefont( 'Helvetica-Bold',    -encoding => 'latin1' ),
+				 Roman  => $pdf->corefont( 'Helvetica',         -encoding => 'latin1' ),
+				 Italic => $pdf->corefont( 'Helvetica-Oblique', -encoding => 'latin1' ),
+		 },
+		 Verdana => {
+				 Bold   => $pdf->corefont( 'Verdana,Bold',    	-encoding => 'latin1' ),
+				 Roman  => $pdf->corefont( 'Verdana',         	-encoding => 'latin1' ),
+				 Italic => $pdf->corefont( 'Verdana,Italic',  	-encoding => 'latin1' ),
+		 },
+		 Times => {
+				 Bold   => $pdf->corefont( 'Times-Bold',   			-encoding => 'latin1' ),
+				 Roman  => $pdf->corefont( 'Times',        			-encoding => 'latin1' ),
+				 Italic => $pdf->corefont( 'Times-Italic', 			-encoding => 'latin1' ),
+		 },
+	);
+
+	$page_text->font( $font{$std_font}{'Bold'}, 9.5/pt );
+	$page_text->fillcolor('black');
+
+	my ( $endw, $ypos, $paragraph ) = text_block(
+			$page_text,
+			'CONFIDENTIAL',
+			-x        => $LEFT,
+			-y        => 198/mm,
+			-w        => $std_width,
+			-h        => 110/mm - 7/pt,
+		);
+
+	my $logo_file = $pdf->image_png($epfl_logo);
+	$gfx->image( $logo_file, 225/mm, 180/mm, 47/mm, 25/mm );
+
+	$gfx->move( $LEFT, 195/mm );
+	$gfx->line( 205/mm, 195/mm );
+	$gfx->stroke;
+
+	#	- HEADER
+	$page_text->font( $font{$std_font}{'Bold'}, 10/pt );
+	( $endw, $ypos, $paragraph ) = text_block(
+			$page_text,
+			'Activities engaged in outside of EPFL',
+			-x        => 100/mm,
+			-y        => 175/mm,
+			-w        => $std_width,
+		);
+
+	( $endw, $ypos, $paragraph ) = text_block(
+			$page_text,
+			'Professors\' annual disclosure  - '.$yeartodo,
+			-x        => 100/mm,
+			-y        => $ypos - 12/pt,
+			-w        => $std_width,
+		);
+
+	#	-- PAGE NB
+	$page_text->font( $font{$std_font}{'Roman'}, 8/pt );
+	my ( $endw1, $ypos1, $paragraph1 ) = text_block(
+			$page_text,
+			qq{Page $page_nb},
+			-x        => $LEFT,
+			-y        => 10/mm,
+			-w        => $std_width,
+		);
+		
+		return $ypos;
+
+}
+
+#_______________
+sub text_block {
+#
+# text_block() is © Rick Measham, 2004-2007. The latest version can be found in the tutorial located at http://rick.measham.id.au/pdf-api2/
+#
+
+     my $text_object = shift;
+     my $text        = shift;
+     my %arg 				 = @_;
+     my $endw;
+
+     # Get the text in paragraphs
+     my @paragraphs = split( /\n/, $text );
+     # calculate width of all words
+     my $space_width = $text_object->advancewidth(' ');
+
+     my @words = split( /\s+/, $text );
+     my %width = ();
+     foreach (@words) {
+         next if exists $width{$_};
+         $width{$_} = $text_object->advancewidth($_);
+     }
+
+     my $ypos 				 	 = $arg{'-y'};
+     my @paragraph 			 = split( / /, shift(@paragraphs) );
+     my $first_line      = 1;
+     my $first_paragraph = 1;
+
+     # while we can add another line
+     while ( $ypos >= $arg{'-y'} - $arg{'-h'} + $arg{'-lead'} ) {
+
+         unless (@paragraph) {
+             last unless scalar @paragraphs;
+             @paragraph = split( / /, shift(@paragraphs) );
+             $ypos -= $arg{'-parspace'} if $arg{'-parspace'};
+             last unless $ypos >= $arg{'-y'} - $arg{'-h'};
+
+             $first_line      = 1;
+             $first_paragraph = 0;
+         }
+
+         my $xpos = $arg{'-x'};
+
+         # while there's room on the line, add another word
+         my @line = ();
+
+         my $line_width = 0;
+         if ( $first_line && exists $arg{'-hang'} ) {
+
+             my $hang_width = $text_object->advancewidth( $arg{'-hang'} );
+
+             $text_object->translate( $xpos, $ypos );
+             $text_object->text( $arg{'-hang'} );
+
+             $xpos       += $hang_width;
+             $line_width += $hang_width;
+             $arg{'-indent'} += $hang_width if $first_paragraph;
+
+         }
+         elsif ( $first_line && exists $arg{'-flindent'} ) {
+
+             $xpos       += $arg{'-flindent'};
+             $line_width += $arg{'-flindent'};
+
+         }
+         elsif ( $first_paragraph && exists $arg{'-fpindent'} ) {
+
+             $xpos       += $arg{'-fpindent'};
+             $line_width += $arg{'-fpindent'};
+
+         }
+         elsif ( exists $arg{'-indent'} ) {
+
+             $xpos       += $arg{'-indent'};
+             $line_width += $arg{'-indent'};
+
+         }
+
+         while ( @paragraph
+             and $line_width + ( scalar(@line) * $space_width ) +
+             $width{ $paragraph[0] } < $arg{'-w'} )
+         {
+
+             $line_width += $width{ $paragraph[0] };
+             push( @line, shift(@paragraph) );
+
+         }
+
+         # calculate the space width
+         my ( $wordspace, $align );
+         if ( $arg{'-align'} eq 'fulljustify'
+             or ( $arg{'-align'} eq 'justify' and @paragraph ) )
+         {
+
+             if ( scalar(@line) == 1 ) {
+                 @line = split( //, $line[0] );
+
+             }
+             $wordspace = ( $arg{'-w'} - $line_width ) / ( scalar(@line) - 1 );
+             $align 		= 'justify';
+         }
+         else {
+             $align = ( $arg{'-align'} eq 'justify' ) ? 'left' : $arg{'-align'};
+             $wordspace = $space_width;
+         }
+         $line_width += $wordspace * ( scalar(@line) - 1 );
+         if ( $align eq 'justify' ) {
+             foreach my $word (@line) {
+
+                 $text_object->translate( $xpos, $ypos );
+                 $text_object->text($word);
+
+                 $xpos += ( $width{$word} + $wordspace ) if (@line);
+
+             }
+             $endw = $arg{'-w'};
+         }
+         else {
+
+             # calculate the left hand position of the line
+             if ( $align eq 'right' ) {
+                 $xpos += $arg{'-w'} - $line_width;
+
+             }
+             elsif ( $align eq 'center' ) {
+                 $xpos += ( $arg{'-w'} / 2 ) - ( $line_width / 2 );
+
+             }
+
+             # render the line
+             $text_object->translate( $xpos, $ypos );
+
+             $endw = $text_object->text( join( ' ', @line ) );
+
+         }
+         $ypos -= $arg{'-lead'};
+         $first_line = 0;
+
+     }
+     unshift( @paragraphs, join( ' ', @paragraph ) ) if scalar(@paragraph);
+
+     return ( $endw, $ypos, join( "\n", @paragraphs ) )
+
+ }
+#	-------------
+sub write_logs {
+	my ($scipertodo, $descr) = @_;
+	return unless $scipertodo && $descr;
+
+  my $sql = qq{insert into logs set
+  		 persid = ?,
+  		 doneby = ?,
+        descr = ?
+  };
+  my $sth 	 = $dbh->prepare ($sql);
+	my  $rv 	 = $sth->execute (($scipertodo, $CurrentUser->{sciper}, $descr));
+	error ("Unable to execute on database : $dbh->{errmsg}\n") unless $rv;
+	
+}
+
+#	-------------
+my $createtable = qq{
+  create table profsacts (
+         year char(4),
+        ordre tinyint,
+       persid char(6) not null,
+       status char(1),
+      	   ts datetime,
+     activity varchar(256),
+    principal varchar(256),
+       persid char(6) not null,
+        index (persid, year)
+  );
+};
+
+#CREATE TABLE `profsacts` (
+#  `year` char(4) DEFAULT NULL,
+#  `ordre` tinyint(4) DEFAULT NULL,
+#  `persid` char(6) nOT NULL,
+#  `activity` varchar(256) DEFAULT NULL,
+#  `principal` varchar(256) DEFAULT NULL,
+#  `ts` datetime DEFAULT NULL,
+#  `status` char(1) DEFAULT NULL,
+#  `doneby` char(6) NOT NULL,
+#  KEY `persid` (`persid`,`year`)
+#) ENGINE=MyISAM DEFAULT CHARSET=latin1 |

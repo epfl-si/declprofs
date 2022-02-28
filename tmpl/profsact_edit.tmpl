@@ -1,0 +1,70 @@
+				<div class="col-md-12 ontop edit" id="yearact_mod<TMPL_VAR NAME=year>">
+
+				<div class="col-md-12 popup">
+
+						<div class="row">
+						<div class="col-md-6">
+						<h2>Edit <TMPL_VAR NAME=year> Activity disclosure</h2>
+						</div>
+						<div class="col-md-6 align_bottom italic">
+						<TMPL_IF NAME="sDoneByRoot">
+						<b>Note:</b> this data has been updated by the APR staff.
+						</TMPL_IF>
+						<span class="right"><a href="#" onclick="toggleEdit('<TMPL_VAR NAME=year>');">close</a></span>
+						</div>
+						</div>
+
+						<form name="main_form" id="main_form" action="<TMPL_VAR NAME=sPathMe>/save" method="POST">
+						<input type="hidden" name="scipertodo" value="<TMPL_VAR NAME=scipertodo>">
+						<input type="hidden" name="year" value="<TMPL_VAR NAME=year>">
+
+						<div class="row">
+							<div class="col-md-3 ">&nbsp;</div>
+							<div class="col-md-5 box_title" style="padding-left: 0;">Type and area of activity (including dual professorships)</div>
+							<div class="col-md-4 box_title" style="padding-left: 0;">Name and address of principal (or institution)</div>
+						</div>
+
+						<div class="row scrollable" id="items">
+							 <TMPL_LOOP NAME=yearAct>
+								<div class="row underlined"  id="<TMPL_VAR NAME=year>item_<TMPL_VAR NAME=index>">
+									<div class="col-md-3" style="text-align: right;">
+										<span class="btn btn-xs btn-info"  onclick="insertItem('<TMPL_VAR NAME=year>','<TMPL_VAR NAME=index>');"><span class="glyphicon glyphicon-plus"></span></span>
+										<span class="btn btn-xs btn-warning" onclick="if (confirm('delete this entry')) delItem('<TMPL_VAR NAME=year>','<TMPL_VAR NAME=index>');"><span class="glyphicon glyphicon-trash"></span></span>
+									</div>
+									<div class="col-md-5">
+										<textarea name="<TMPL_VAR NAME=year>activity_<TMPL_VAR NAME=index>"  class="no_borders" id="<TMPL_VAR NAME=year>activity_<TMPL_VAR NAME=index>"><TMPL_VAR NAME=activity></textarea>
+									</div>
+									<div class="col-md-4">
+										<textarea name="<TMPL_VAR NAME=year>principal_<TMPL_VAR NAME=index>"  class="no_borders" id="<TMPL_VAR NAME=year>principal_<TMPL_VAR NAME=index>"><TMPL_VAR NAME=principal></textarea>
+									</div>
+								</div>
+							 </TMPL_LOOP>
+						</div>
+						<h3>Remarks</h3>
+						<textarea name="remarks" style="width:100%; height: 75px;"><TMPL_VAR NAME=crt_remarks></textarea>
+
+						<p style="margin-top: 20px;">
+						<p style="margin-top: 20px;">
+							<input type="submit" name="save" value="Save" >  Your inputs are recorded but not submitted
+						
+						<TMPL_IF NAME=isRoot>
+							<div style="float: right; display: inline; position: relative; margin-top: -35px;"><input type="submit" name="save_apr_remarks" value="Save only APR Remarks" >  No Professor notification</div>
+						</TMPL_IF>
+
+						</p>
+						
+						<p class="bold" style="margin-top: 20px;">
+						 With my submission, I certify that this list of activities is complete and accurate and declare not to have devoted to them more than the equivalent of 1 day per week for a full time position.<br>
+						</p>
+						<p style="margin-top: 20px;">
+						<input type="submit" name="submit" value="Save and Submit" onclick="if (confirm('Submit this disclosure form ?')) {
+							return true;
+							} else {
+							return false;
+							}">
+							 The complete and final list of activities for the year is submitted officially.
+						</p>
+						</form>
+
+					</div>			
+					</div>			

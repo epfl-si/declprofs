@@ -1,0 +1,69 @@
+<TMPL_INCLUDE NAME="profsact_head.tmpl">
+
+<div class="container">
+
+<TMPL_IF NAME=sMsg>
+	<div class="row error">
+		<p><TMPL_VAR NAME=sMsg></p>
+	</div>
+<TMPL_ELSE>
+
+		<TMPL_IF NAME=sOutLoop>
+			People found for : <TMPL_VAR NAME=sSearch>
+			<TMPL_LOOP NAME=sOutLoop>
+				<div class="col-md-12">
+					<div class="row underlined" >
+						<div class="col-md-1"><TMPL_VAR NAME=sciper></div>
+						<div class="col-md-5">
+						<TMPL_IF NAME=isprof>
+							<a href="<TMPL_VAR NAME=sPathMe>/search?search_item=<TMPL_VAR NAME=sciper>"><TMPL_VAR NAME=lastname></a>
+						<TMPL_ELSE>
+							<TMPL_VAR NAME=lastname>
+						</TMPL_IF>
+						</div>
+						<div class="col-md-5"><TMPL_VAR NAME=firstname></div>
+						<div class="col-md-1"><TMPL_VAR NAME=isprof></div>
+					</div>
+				</div>
+			</TMPL_LOOP>
+		<TMPL_ELSE>
+			<div class="col-md-4" ><h3><TMPL_VAR NAME=sYearToDo> : activities by professor</h3></div>
+			<div class="col-md-5 align_bottom" >
+				Submitted : <TMPL_VAR NAME=sent>, 
+				Not submitted : <TMPL_VAR NAME=notsent>
+				Missing : <TMPL_VAR NAME=missing>
+				  <TMPL_IF NAME=missing>
+					( <a href="<TMPL_VAR NAME=sPathMe>/missing?yeartodo=<TMPL_VAR NAME=sYearToDo>">Show </a> )
+				  </TMPL_IF>
+			</div>
+			<div class="col-md-3 align_bottom" ><a href="<TMPL_VAR NAME=sPathMe>/extract?yeartodo=<TMPL_VAR NAME=sYearToDo>">Extract all year data (CSV)</a></div>
+		
+			<div class="col-md-12" >
+				<div class="row">
+					<div class="col-md-1 box_title grey">Sciper</div>
+					<div class="col-md-1 box_title grey">APR</div>
+					<div class="col-md-2 box_title grey">Submitted</div>
+					<div class="col-md-2 box_title grey">Name</div>
+					<div class="col-md-3 box_title grey">Professor Remarks</div>
+					<div class="col-md-3 box_title grey">APR Remarks</div>
+				</div>
+
+				<TMPL_LOOP NAME=profsLoop>
+				<div class="row underlined" >
+					<div class="col-md-1"><TMPL_VAR NAME=sciper></div>
+					<div class="col-md-1"><TMPL_VAR NAME=donebyroot></div>
+					<div class="col-md-2"><TMPL_VAR NAME=submitted></div>
+					<div class="col-md-2"><a href="<TMPL_VAR NAME=sPathMe>/search?search_item=<TMPL_VAR NAME=sciper>&yeartodo=<TMPL_VAR NAME=yeartodo>"><TMPL_VAR NAME=lastname> <TMPL_VAR NAME=firstname></a></div>
+					<div class="col-md-3"><TMPL_VAR NAME=prof_remarks></div>
+					<div class="col-md-3"><TMPL_VAR NAME=remarks></div>
+				</div>
+				</TMPL_LOOP>
+			</div>
+		</TMPL_IF>
+
+</TMPL_IF>
+
+</div>
+
+<TMPL_INCLUDE NAME="profsact_foot.tmpl">
+

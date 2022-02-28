@@ -1,0 +1,127 @@
+#!/usr/bin/perl
+#
+##############################################################################
+#
+# Author:       Ion CIONCA (Ion.Cionca@epfl.ch) - 2018
+#
+#########################################################################
+#####
+#
+#
+
+use strict;
+
+use lib '/opt/declprofs/lib/perl';
+
+use CGI;
+
+use Cadi::CadiDB;
+use Cadi::WSUtils;
+
+use vars qw($pi $qs $us $me $dbh );
+
+my $pi 					 = $ENV {PATH_INFO};
+my $DEBUG				 = -f '/var/www/vhosts/declprofs.epfl.ch/private/etc/MASTER' ? 0 : 1;
+$ENV {DBCONFDIR} = '/opt/declprofs/etc';
+
+#warn "--> start probe from $ENV{REMOTE_ADDR} : pathinfo=$pi\n";
+
+my $config_items = {
+		accreddb	 => { active => '1', critical => 'true', label => 'mysql accred/dinfo db access',},
+		declprofdb => { active => '1', critical => 'true', label => 'mysql declprofs db access', },
+};
+
+my $query = new CGI;
+my %args;
+my @params = $query->param;
+foreach my $item (@params) {
+	if ($item eq 'metrics') {
+		$args{$item} = 1;
+	}
+} 
+my $probe ;
+   $probe->{status} = 'ok';
+
+if ( $pi =~ /usage/ ) {
+	my $return = {  
+		status => 'ok', 
+		usage  => qq{https://$ENV{SERVER_NAME}/probe - returns status : ok | ko | warning
+		
+		},
+	} ;
+	Cadi::WSUtils::json_response ( { probe => $return, } );
+	exit;
+}	
+
+	my $metrics;
+	my $line = $DEBUG ? 'test' : 'prod';
+
+foreach my $key ( keys %$config_items ) {
+	my $item = $config_items->{$key};
+#warn ">> $key : $item->{active}\n";
+	next unless $item->{active};
+
+	$probe->{$key}->{status} = 'ko';
+
+	if ( $key eq 'declprofdb' ) {
+		$dbh = new Cadi::CadiDB (
+			dbname => 'declprofs',
+			 trace => 1,
+			 utf8  => 1,
+		) ;
+
+		if ( $dbh ) {
+		  my $sql = qq{select persid from profsacts LIMIT 0, 1 };
+			my $sth = $dbh->prepare( $sql) ;
+			if ($sth) {
+				$sth->execute () ;
+				$probe->{$key}->{status} = 'ok' if $sth->fetchrow;
+			}
+		}
+	}
+
+	if ( $key eq 'accreddb' ) {
+		$dbh = new Cadi::CadiDB (
+			dbname => 'accred',
+			 trace => 1,
+			 utf8  => 1,
+		) ;
+		if ( $dbh ) {
+		  my $sql = qq{select persid from accreds LIMIT 0, 1 };
+			my $sth = $dbh->prepare( $sql) ;
+			if ($sth) {
+				$sth->execute () ;
+				$probe->{$key}->{status} = 'ok' if $sth->fetchrow;
+			}
+		}
+	}
+	$probe->{$key}->{label} 		= $item->{label};
+	$probe->{$key}->{critical} = $item->{critical};
+
+	unless ( $probe->{$key}->{status} eq 'ok' ) {
+		$probe->{status} = $item->{critical} eq 'true' ? 'ko' : 'warning';
+	}
+
+	my $item_status = $probe->{$key}->{status} eq 'ok' ? '1' : '0';
+	$metrics .= qq{declprofs_status{component="$key", critical="$item->{critical}", line="$line"} $item_status\n};
+
+}
+
+	print "Status: 200 OK\r\n";
+	if ( $args{metrics} ) {
+		my $probe_status = $probe->{status} eq 'ko' ? '0' : '1';
+		print "Content-Type: text\r\n\r\n";
+		print qq{# HELP declprofs_status declprofs service status: 1=OK, 0=KO
+# TYPE declprofs_status gauge
+declprofs_status{component="global", line="$line"} $probe_status
+$metrics} ;
+		exit;
+	}
+
+	if ( $args{verbose} ) {
+		Cadi::WSUtils::json_response ( $probe );
+	} else {
+		print "Content-Type: text/html\r\n\r\n";
+	}
+
+	exit;

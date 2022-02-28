@@ -1,0 +1,36 @@
+<div class="col-md-12 ontop" id='help' >
+
+	<div class="col-md-12 popup" > 
+		<div class="col-md-12">
+			<div class="col-md-6"><h3>Icons description</h3></div>
+			<div class="col-md-5 align_bottom">	<a href="#" onclick="hideDiv('help');" class="right">close</a></div>
+		</div>
+
+		<div class="col-md-12">
+			<p><span class="btn btn-xs btn-info" title="Edit year activity"><span class="glyphicon glyphicon-pencil" ></span></span> - edit form	</p>
+			<p><span class="btn btn-xs btn-info" title="Clone this activity to current year"><span class="glyphicon glyphicon-transfer" ></span></span> - clone this year's activity declaration to current year edit form ; current data will be replaced</p>
+			<p><span class="btn btn-xs btn-info" title="View/Download PDF"><span class="glyphicon glyphicon-eye-open"  ></span></span> - display/download PDF of this year's activity</p>
+			<p><span class="btn btn-xs btn-info" title="updated by the APR staff"><span class="glyphicon glyphicon-alert"></span></span> - this year's activity declaration has been updated by the APR staff.</p>
+		</div>
+	</div>
+</div>
+
+<div class="container">
+	<div class="col-md-12" id="footer"> 
+		<hr>
+		<TMPL_IF NAME="sNom">
+		user : <TMPL_VAR NAME="sPrenom"> <TMPL_VAR NAME="sNom">, 
+		</TMPL_IF>
+		<span class="copyright">&copy; <TMPL_VAR NAME="sYear"> EPFL</span>
+		-
+		<a href="mailto:1234@epfl.ch">contact</a>
+		<TMPL_IF NAME="sNom">
+		-
+		<a href="#" onclick="showDiv('help');">Icon description</a>
+		</TMPL_IF>
+
+	</div> 
+</div>
+
+</body>
+</html>

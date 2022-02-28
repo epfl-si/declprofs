@@ -1,0 +1,139 @@
+<div class="container">
+
+		<TMPL_IF NAME=isRoot>
+			<TMPL_IF NAME=sNomToDo>
+			<div class="row">
+			<div class="col-md-6" ><h3><TMPL_VAR NAME=sPrenomToDo> <TMPL_VAR NAME=sNomToDo></h3></div>
+			<div class="col-md-3 align_bottom" ><a href="#" onclick="loadHistory('<TMPL_VAR NAME=sPathMe>/history?scipertodo=<TMPL_VAR NAME=scipertodo>');">See declarations history </a></div>
+			<div class="col-md-3 align_bottom" ><a href="<TMPL_VAR NAME=sPathMe>/extract?scipertodo=<TMPL_VAR NAME=scipertodo>">Extract data (CSV)</a></div>
+			</div>
+			</TMPL_IF>
+		<TMPL_ELSE>
+			<div class="row">
+			<div class="col-md-6" ><h3><TMPL_VAR NAME=sPrenomToDo> <TMPL_VAR NAME=sNomToDo></h3></div>
+			<div class="col-md-6 align_bottom" ><a href="#" onclick="loadHistory('<TMPL_VAR NAME=sPathMe>/history?scipertodo=<TMPL_VAR NAME=scipertodo>');">See declarations history </a></div>
+			</div>
+		</TMPL_IF>
+
+		<div class="row">
+			<div class="col-md-1 box_title grey">Years</div>
+			<div class="col-md-2 box_title grey">Submitted</div>
+			<div class="col-md-5 box_title grey">Type and area of activity (including dual professorships)</div>
+			<div class="col-md-4 box_title grey">Name and address of principal (or institution)</div>
+		</div>
+		
+		<div class="row">
+		<div class="col-md-12 italic" style="margin: 5px 0 5px 0;">
+		To edit the data, please click on the <span class="btn btn-xs btn-info"><span class="glyphicon glyphicon-pencil"></span></span> icon (if present). If there are no activities to be disclosed, please fill out one line indicating "N/A".
+		To add global comments, please edit the current year (clicking on the <span class="btn btn-xs btn-info"><span class="glyphicon glyphicon-pencil"></span></span> icon ) and enter them into the "Remarks" field.
+		To clone activities (i.e. to copy former activities in the current year), please click on <span class="btn btn-xs btn-info"><span class="glyphicon glyphicon-transfer"></span></span> icon.
+		<hr style="margin: 5px 0 5px 0;">
+		</div>
+		</div>
+
+		<div class="col-md-12 ontop" id="history">
+		<div class="col-md-12 scrollable" style="background-color: #ffffff;">
+			<div class="right_align"> <a href="#" onclick="hideDiv('history');">close</a></div>
+			<div class="col-md-12" id="history_items">
+			</div>
+		</div>
+		</div>
+		
+		<TMPL_LOOP NAME=sYearsLoop>
+		<div class="row" <TMPL_IF NAME=isCrtYear>style="background-color: #eeeeee;"</TMPL_IF>>
+			<div class="col-md-12" style="padding: 0;">
+				<span class="bold"><TMPL_VAR NAME=year></span>
+			</diV>
+		</div>
+
+		<div class="row" <TMPL_IF NAME=isCrtYear>style="background-color: #eeeeee;"</TMPL_IF>>
+			<div class="col-md-1" style="padding: 0;">
+				<TMPL_IF NAME=isRoot>
+					<TMPL_IF NAME=modYear>
+							<span class="btn btn-xs btn-info" title="Edit year activity"><span class="glyphicon glyphicon-pencil" onclick="toggleEdit('<TMPL_VAR NAME=year>');"></span></span>
+					<TMPL_ELSE>
+							<span class="btn btn-xs btn-info" title="Clone this year's activity to current year"><span class="glyphicon glyphicon-transfer" onclick="if (confirm('Clone this year activity to current year? The current year\'s declaration will be replaced!')) { location.href='<TMPL_VAR NAME=sPathMe>/clone?fromyear=<TMPL_VAR NAME=year>&scipertodo=<TMPL_VAR NAME=scipertodo>;' }" ></span></span>
+					</TMPL_IF>
+				<TMPL_ELSE>
+					<TMPL_IF NAME=modYear>
+							<span class="btn btn-xs btn-info" title="Edit year activity"><span class="glyphicon glyphicon-pencil" onclick="toggleEdit('<TMPL_VAR NAME=year>');"></span></span>
+					<TMPL_ELSE>
+							<span class="btn btn-xs btn-info" title="Clone this year's activity to current year"><span class="glyphicon glyphicon-transfer" onclick="if (confirm('Clone this year activity to current year? The current year\'s declaration will be replaced!')) { location.href='<TMPL_VAR NAME=sPathMe>/clone?fromyear=<TMPL_VAR NAME=year>&scipertodo=<TMPL_VAR NAME=scipertodo>;' }" ></span></span>
+					</TMPL_IF>
+				</TMPL_IF>
+
+				<TMPL_IF NAME=submitted>
+					<span class="btn btn-xs btn-info" title="View/Download PDF"><span class="glyphicon glyphicon-eye-open" onclick="location.href='<TMPL_VAR NAME=sPathMe>/pdf?yeartodo=<TMPL_VAR NAME=year>&scipertodo=<TMPL_VAR NAME=scipertodo>';" ></span></span>
+				</TMPL_IF>
+
+				<TMPL_IF NAME=donebyroot>
+					<span class="btn btn-xs btn-info" title="updated by the APR staff"><span class="glyphicon glyphicon-alert"></span></span>
+				</TMPL_IF>
+			</div>
+
+			<div class="col-md-2 bold">
+					<TMPL_VAR NAME=submitted>
+			</div>
+
+			<div class="col-md-9" id="yearact<TMPL_VAR NAME=year>">
+				<TMPL_IF NAME=yearAct>
+					<TMPL_LOOP NAME=yearAct>
+						<div class="row underlined" style="min-height: 30px;">
+							<div class="col-md-7">
+								<TMPL_UNLESS NAME=modYear>
+										<span class="btn btn-xs btn-info" title="Clone this activity to current year"><span class="glyphicon glyphicon-transfer" onclick="if (confirm('Clone this activity to current year? ')) { location.href='<TMPL_VAR NAME=sPathMe>/clone?fromyear=<TMPL_VAR NAME=year>&index=<TMPL_VAR NAME=index>&scipertodo=<TMPL_VAR NAME=scipertodo>'; }" ></span></span>
+								</TMPL_UNLESS>
+								<TMPL_VAR NAME=activity>
+							</div>
+							<div class="col-md-5" style="padding-left:0;"><TMPL_VAR NAME=principal></div>
+						</div>
+					</TMPL_LOOP>
+				</TMPL_IF>
+			</div>
+	
+			<TMPL_IF NAME=isRoot>
+				<TMPL_INCLUDE NAME="profsact_edit.tmpl">
+			<TMPL_ELSE>
+				<TMPL_IF NAME=modYear>
+					<TMPL_INCLUDE NAME="profsact_edit.tmpl">
+				</TMPL_IF>
+			</TMPL_IF>
+
+		</div>
+
+		<div class="row" <TMPL_IF NAME=isCrtYear>style="background-color: #eeeeee;"</TMPL_IF> >
+			<div class="col-md-3" style="padding-left: 10px; font-weight: bold;">
+					Remarks
+			</div>
+			<div class="col-md-9" style="padding: 0;">
+				<div class="row underlined" style="min-height: 30px;">
+
+					<TMPL_IF NAME=isRoot>
+						<div class="col-md-7">
+						<b>By Professor:</b> <TMPL_VAR NAME=prof_remarks>
+						</div>
+						<div class="col-md-5"style="padding-left:0;">
+						<b>By APR:</b> <TMPL_VAR NAME=remarks>
+						</div>
+					<TMPL_ELSE>
+						<div class="col-md-7">
+						<TMPL_VAR NAME=prof_remarks>
+						</div>
+					</TMPL_IF>
+
+				</div>
+			</div>
+		</div>
+		
+		<div class="row"><hr>
+		</div>
+		</TMPL_LOOP>
+		
+		<TMPL_IF NAME=sNotif>
+			<div class="row notification" id="notif">
+			<div class="right_align"> <a href="#" onclick="hideDiv('notif');">close</a></div>
+			Your annual activities disclosure declaration has been sent to the Office of Faculties Affairs. You will also receive a copy of this notification.<br>
+			You can still modify your activities declaration until <strong><TMPL_VAR NAME=sNxtDelay></strong> and resubmit it from this page.<br>
+			</div>
+		</TMPL_IF>
+</div>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>EPFL :: professor external activities</title>
+
+<meta http-equiv="X-UA-Compatible" 	content="IE=edge">
+<meta name="description" 			content="">
+<meta name="viewport" 				content="width=device-width,initial-scale=1">
+
+<link rel="shortcut icon" type="image/x-icon" 	href="//static.epfl.ch/v0.26.0/favicon.ico" />
+<link rel="icon" 		  type="image/png" 		href="//static.epfl.ch/v0.26.0/favicon.png" />
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+
+<!-- <link rel="stylesheet" href="/extra/bootstrap.min.css"> -->
+<!-- <link rel="stylesheet" href="/extra/bootstrap-theme.min.css"> -->
+<link rel="stylesheet" href="/extra/declprofs.css">
+
+<script type="text/javascript" src="/extra/declprofs.js"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+	<div class="row">
+		<div class="col-md-12">
+			<a href="http://www.epfl.ch" title="Page d'accueil de l'EPFL"><img src="https://www.epfl.ch/img/epfl_small.png"></a>
+		</div>
+
+		<TMPL_IF NAME=isRoot>
+			<div class="col-md-12">
+				<h3>Professor activities engaged outside of EPFL</h3>
+			</div>
+			<div class="col-md-6">
+				<form name="form" action="<TMPL_VAR NAME=sPathMe>/search" method="POST">
+					Search: <input name="search_item"> <span class="btn btn-xs btn-info"  onclick="form.submit();"><span class="glyphicon glyphicon-zoom-in"></span></span>
+				</form>
+			</div>
+			<div class="col-md-6">
+					List years : <TMPL_LOOP NAME=yearsLoop><a href="<TMPL_VAR NAME=sPathMe>/list?yeartodo=<TMPL_VAR NAME=year>"> <TMPL_VAR NAME=year></a></TMPL_LOOP>
+			</div>
+		<TMPL_ELSE>
+
+			<div class="col-md-12">
+				<h2>Activities engaged in outside of EPFL</h2>
+				<h3>Professors' annual disclosure - <TMPL_VAR NAME=sYearToDo></h3>
+				According to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1<sup>st</sup>, 2005, and to article 8, professors must disclose to the President of EPFL all external activities such as consulting, scientific advice or expert valuations that they may exercise (<a href="#" onclick="showDiv('details');">more...</a>)
+			</div>
+
+			<div class="col-md-12 ontop edit" id='details'>
+			<div class="col-md-12 popup">
+				<div class="right_align"> <a href="#" onclick="hideDiv('details');">close</a></div>
+				<h3>Professors' annual disclosure - <TMPL_VAR NAME=sYearToDo></h3>
+				According to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1<sup>st</sup>, 2005, and to article 8, in particular:
+				<ol style="margin-top: 10px; text-align: justify; padding-right: 10px;">
+				<li class="italic smaller">  Professors must disclose to the President of EPFL all external activities such as consulting, scientific advice or expert valuations that they may exercise in accordance with article 6 of the "Ordinance on EPF faculty". The disclosure is made once a year for the previous twelve months and mentions the activities carried out during that year (including those still in progress). The disclosure shall include the following information: (i) <b>type and area of activity</b> and (ii) <b>name of principal</b>. In case of use of EPFL resources or potential conflicts of interest, article 6, or article 7, paragraph 2 of this directive, remains applicable respectively. </li>
+				<li class="italic smaller">  The activities of professors referred to in the present article are exercised in a private capacity, that is in their own name, on their own behalf and under their own responsibility.</li>
+				<li class="italic smaller">  For all activities referred to in the first paragraph, professors will obtain from their principal or co-contracting party a written undertaking towards EPFL concerning (i) intellectual property belonging to EPFL and (ii) the fact that the mandate does not commit the EPFL. The terms of this undertaking are stipulated by the TTO, which provides a standard text. </li>
+				</ol>
+				The disclosure shall be performed by <span class="underline"><b>March 31<sup>st</sup>, <TMPL_VAR NAME=sYear></b></span>, at the latest. Data will be filed and treated confidentially, according to the Freedom of Information Act (FoIA, RS 152.3). ALL activities engaged in during <span class="underline">the period from January 1<sup>st</sup>, <TMPL_VAR NAME=sYearToDo>, to December 31<sup>st</sup>, <TMPL_VAR NAME=sYearToDo></span>, shall be listed, including dual professorships as well as those activities already duly authorized (e.g. participation in boards of directors).
+			</div>
+			</div>
+		</TMPL_IF>
+		
+	</div>
+	<hr>
+</div>
+

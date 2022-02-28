@@ -1,0 +1,14 @@
+<TMPL_INCLUDE NAME="profsact_head.tmpl">
+
+<TMPL_IF NAME=sMsg>
+	<div class="row error">
+		<p><TMPL_VAR NAME=sMsg></p>
+	</div>
+<TMPL_ELSE>
+	<TMPL_INCLUDE NAME="profsact_det.tmpl">
+</TMPL_IF>
+
+</div>
+
+<TMPL_INCLUDE NAME="profsact_foot.tmpl">
+
