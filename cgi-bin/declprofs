@@ -1305,7 +1305,7 @@ sub putProfAct {
   	my $user = getUserBySciper($scipertodo);
   	error ("person not found") unless $user;
 
-	  my $subj = "APR modification - annual disclosure of outside activities $yeartodo";
+	  my $subj = "APR modification - annual disclosure of $yeartodo outside activities";
 		$msg 		 = qq{
 		Dear Professor $user->{firstname} $user->{lastname},<br>
 		<br>
@@ -1325,7 +1325,7 @@ sub putProfAct {
 		write_logs ($scipertodo, "$yeartodo act update ($items items)");
 
 		if ( $args->{submit} ) {
-			my $subj = "$CurrentUser->{firstname} $CurrentUser->{lastname} disclosure $yeartodo = ok";
+			my $subj = "$CurrentUser->{firstname} $CurrentUser->{lastname} annual disclosure of outside activities = ok";
 			$msg 		 = qq{
 			Dear Professor $CurrentUser->{firstname} $CurrentUser->{lastname},<br>
 			<br>
