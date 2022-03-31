@@ -176,7 +176,7 @@ $currentdate 	= sprintf "%04d-%02d-%02d", $year, $mon, $mday;
 $MAX_DELAY		= 14;		#	- next decl delay, days
 
 $LASTDATE			= $year.'-03-31';
-$LASTDATE			= $year.'-04-07';
+$LASTDATE			= $year.'-04-10';
 $FORCEPREVYEAR= 1;		#	- 
 $LASTDATE			= $currentdate if $FORCEPREVYEAR;	#	- keep PREVYEAR open
 
