@@ -12,6 +12,7 @@
 use strict;
 
 use lib '/opt/declprofs/lib/perl';
+use utf8;
 
 use Cadi::CadiDB;
 use Cadi::Persons;
@@ -137,6 +138,7 @@ $ENV {DBCONFDIR} = '/opt/declprofs/etc';
 $dbh = new Cadi::CadiDB (
   dbname => 'declprofs',
    trace => 1,
+  utf8 => 1
 ) unless $dbh;
 error ("FATAL DB ACCESS") unless $dbh;
 
@@ -192,7 +194,7 @@ authenticate () ;
 my $limit_year = $yeartodo eq $year ? $year + 1 : $yeartodo;
 
 my @pdf_textes = (
- qq|Once per year, professors shall disclose outside activities, according to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1).|,
+ qq|Once per year, professors shall disclose outside activities, according to the Â« Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere Â» dated December 1st, 2005 (LEX 4.1.1).|,
  qq|Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1.|,
  qq||,
  qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. |,
@@ -260,8 +262,8 @@ sub main {
 	$template->param(sNotif 	=> $args->{submit});
 	$template->param(sPathMe 	=> $me);
   $template->param(sMsg 		=> $msg);
-  
-  print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+  binmode(STDOUT, ":utf8");
+  print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
   exit;
 }
 
@@ -314,7 +316,7 @@ sub authenticate {
   }
 #	--
 
-warn "authenticate : $CurrentUser->{sciper}, $CurrentUser->{firstname}, $CurrentUser->{lastname}, $CurrentUser->{isprof}\n";
+warn "authenticate : $CurrentUser->{sciper}, $CurrentUser->{firstname}, $CurrentUser->{lastname}, $CurrentUser->{isprof}, $authtoken\n";
 
   checkSession ($authtoken) ;
   $authtoken	= makeSession ()  ;
@@ -509,7 +511,7 @@ sub missing {
 			<br>
 			It seems that your annual disclosure of outside activities has not been uploaded by the official March 31<sup>st</sup> deadline.<br>
 			<br>
-			Kindly take care of this matter by <b>$nxtdelay_txt</b>, after which we shall have to contact your Dean.<br>
+			Kindly take care of this matter by <b>$nxtdelay_txt</b>, after which we shall have to inform your Dean.<br>
       <br>
 			Best regards,<br>
 			Faculty Affairs
@@ -535,7 +537,8 @@ sub missing {
   $template->param(sCrtYear	 	 => $yeartodo eq ($year-1));
   $template->param(sLimitDate	 => sprintf "%02d/%02d/%04d", $limit_dd, $limit_mm, $limit_yy);
 
-  print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+  binmode(STDOUT, ":utf8");
+  print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
   exit;
 }
 
@@ -592,7 +595,8 @@ sub list {
   $template->param(missing	 => $missing);
   $template->param(sCrtYear	 => $yeartodo eq ($year-1));
 
-  print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+  binmode(STDOUT, ":utf8");
+  print "Content-Type: text/html; charset=UTF-8\n\n" . $template->output;
   exit;
 }
 
@@ -663,7 +667,8 @@ sub search {
   $template->param(sPathMe => $me);
   $template->param(sMsg 	 => $msg);
   
-  print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+  binmode(STDOUT, ":utf8");
+  print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
   exit;
 }
 
@@ -707,6 +712,7 @@ sub remarks {
 
 	write_logs ($scipertodo, "remarks $yeartodo");
 	
+        binmode(STDOUT, ":utf8");
 	print qq{
 	<script>
 	location.href="$me";
@@ -750,7 +756,8 @@ sub history {
 	}
 	$retHTML .= qq{</div>};
 
-	print "Content-Type: text/html; charset=ISO-8859-1\n\n", $retHTML;
+        binmode(STDOUT, ":utf8");
+	print "Content-Type: text/html; charset=UTF-8\n\n", $retHTML;
 	exit;
 
 }
@@ -803,6 +810,7 @@ sub clone {
 	$me =~ s/\/clone.*$//;
 	$me.= qq{/search?search_item=$UserTodo->{sciper}} if $CurrentUser->{isroot} ;
 
+        binmode(STDOUT, ":utf8");
 	print qq{
 	<script>
 	location.href="$me";
@@ -818,7 +826,8 @@ sub clone {
 	$template->param(sPrenomToDo => $UserTodo->{firstname});
 	$template->param(sYearsLoop	 => \@years_loop);
 
-	print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+        binmode(STDOUT, ":utf8");
+	print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
 	exit;
 
 }
@@ -876,7 +885,8 @@ warn "--> clone\n".Dumper($act_to_clone);
 	$template->param(sPrenomToDo => $CurrentUser->{firstname});
 	$template->param(sYearsLoop	 => \@years_loop);
 
-	print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+        binmode(STDOUT, ":utf8");
+	print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
 	exit;
 
 }
@@ -1034,6 +1044,7 @@ sub save {
 	write_logs ($args->{scipertodo}, "$remark_type $yeartodo");
 
 	$me =~ s/\/save//;
+        binmode(STDOUT, ":utf8");
 	print qq{
 	<script>
 	location.href="$me";
@@ -1357,6 +1368,7 @@ sub initTempl {
   my $template = HTML::Template->new(filename => $template_file,
 	   strict => 0,
 	   cache => 1,
+           utf8 => 1,
 	   die_on_bad_params => 0) or die "err : $!";
   $template->param(serrMsg 		=> $errMsg);
   $template->param(sPathMe 		=> $me);
@@ -1374,7 +1386,8 @@ sub initTempl {
 #warn "--> initTempl : scipertodo=$CurrentUser->{sciper}\n";
 
   if ($errMsg) {
-     print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+    binmode(STDOUT, ":utf8");
+     print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
      exit;
   }
 
@@ -1443,6 +1456,7 @@ sub genrandomkey {
   my $len = shift || 16;
   my $rand;
   open (RND, "/dev/urandom") || die "Unable to init random engine : $!";
+  binmode(RND);
   if (sysread (RND, $rand, $len) != $len) { die "Unable to read random bytes : $!"; }
   close (RND);
   return $rand;
@@ -1454,7 +1468,8 @@ sub error {
 
    my $template = initTempl('profsact_err.tmpl');
    $template->param(sMsg => $msg);
-   print "Content-Type: text/html; charset=ISO-8859-1\n\n", $template->output;
+   binmode(STDOUT, ":utf8");
+   print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
    exit;
 }
 
@@ -1665,11 +1680,12 @@ warn "dest : $dest\n";
 
 	eval {
 		open  (MAIL, "| $SENDMAIL_CMD -t -F$replyTo -f$replyTo") or return;
+                binmode(MAIL, ":utf8");
 		print MAIL qq{To: $mailTo\n};
 		print MAIL qq{Cc: $AP_email \n};
 		print MAIL qq{Reply-to: $replyTo
 Subject: $subj
-Content-type: text/html; charset=iso-8859-1
+Content-type: text/html; charset=utf-8
 
 $msg
 		};
@@ -1688,6 +1704,7 @@ sub pdf {
     print "Content-Type: application/pdf\n\n";
 		my $pdffile = makePDF ();
 		open (PDF, $pdffile);
+                binmode(PDF);
 		while (<PDF>) {
 			print $_;
 		}
@@ -1721,7 +1738,7 @@ sub makePDF {
 		#	- LOOP ON ITEMS
 		my $submitted;
 		my $prof_act   = getProfAct ($scipertodo, $yeartodo);
-#warn "--> makePDF : getProfAct done\n";
+use Data::Dumper; warn "--> makePDF : getProfAct -> " . Dumper($prof_act) . " \n";
 		foreach my $index (sort keys %$prof_act) {
 			next unless $prof_act->{$index}->{status} eq '2';
 			$submitted = $prof_act->{$index}->{ts};
@@ -1970,19 +1987,19 @@ sub put_pdf_header {
 
 	%font = (
 		 Helvetica => {
-				 Bold   => $pdf->corefont( 'Helvetica-Bold',    -encoding => 'latin1' ),
-				 Roman  => $pdf->corefont( 'Helvetica',         -encoding => 'latin1' ),
-				 Italic => $pdf->corefont( 'Helvetica-Oblique', -encoding => 'latin1' ),
+				 Bold   => $pdf->corefont( 'Helvetica-Bold'),
+				 Roman  => $pdf->corefont( 'Helvetica'),
+				 Italic => $pdf->corefont( 'Helvetica-Oblique'),
 		 },
 		 Verdana => {
-				 Bold   => $pdf->corefont( 'Verdana,Bold',    	-encoding => 'latin1' ),
-				 Roman  => $pdf->corefont( 'Verdana',         	-encoding => 'latin1' ),
-				 Italic => $pdf->corefont( 'Verdana,Italic',  	-encoding => 'latin1' ),
+				 Bold   => $pdf->corefont( 'Verdana,Bold'),
+				 Roman  => $pdf->corefont( 'Verdana'),
+				 Italic => $pdf->corefont( 'Verdana,Italic'),
 		 },
 		 Times => {
-				 Bold   => $pdf->corefont( 'Times-Bold',   			-encoding => 'latin1' ),
-				 Roman  => $pdf->corefont( 'Times',        			-encoding => 'latin1' ),
-				 Italic => $pdf->corefont( 'Times-Italic', 			-encoding => 'latin1' ),
+				 Bold   => $pdf->corefont( 'Times-Bold'),
+				 Roman  => $pdf->corefont( 'Times'),
+				 Italic => $pdf->corefont( 'Times-Italic'),
 		 },
 	);
 
@@ -1998,7 +2015,7 @@ sub put_pdf_header {
 			-h        => 110/mm - 7/pt,
 		);
 
-	my $logo_file = $pdf->image_png($epfl_logo);
+	my $logo_file = do { no utf8::all; $pdf->image_png($epfl_logo); };
 #	$gfx->image( $logo_file, 225/mm, 180/mm, 47/mm, 25/mm );
 	$gfx->image( $logo_file, 229/mm, 188/mm, 50/mm, 14/mm );
 
@@ -2042,7 +2059,7 @@ sub put_pdf_header {
 #_______________
 sub text_block {
 #
-# text_block() is © Rick Measham, 2004-2007. The latest version can be found in the tutorial located at http://rick.measham.id.au/pdf-api2/
+# text_block() is Â© Rick Measham, 2004-2007. The latest version can be found in the tutorial located at http://rick.measham.id.au/pdf-api2/
 #
 
      my $text_object = shift;
