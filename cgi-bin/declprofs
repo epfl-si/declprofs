@@ -196,15 +196,10 @@ my @pdf_textes = (
  qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
      );
 
-	my $nolimit		= '189915,246669,231181,143954,166542,146991,105059,257875,236660,217627,192826,174688,121849,166540,122431,179025,222189,105615,167337,138859,235585,168244,209207,265228,223776,167919,124369,280037,112464,263767';
-	my $nolimit		= '';
-
 	my $reminders	= getReminders ($yeartodo) ;
   
   unless ($CurrentUser->{isroot}) {
   	$LASTDATE = $reminders->{$CurrentUser->{sciper}}->{nxtdelay} if $reminders->{$CurrentUser->{sciper}}->{nxtdelay} && !$FORCEPREVYEAR;
-		#	- exceptions
-		$LASTDATE	= $year.'-12-31' if $nolimit =~ /$CurrentUser->{sciper}/;
   }
 
   if 	  ($PROC eq 'save') {
