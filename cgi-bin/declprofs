@@ -1314,12 +1314,12 @@ sub putProfAct {
 		$msg 		 = qq{
 		Dear Professor $user->{firstname} $user->{lastname},<br>
 		<br>
-		Your $yeartodo annual disclosure has been modified/updated by Faculty Affairs staff.<br>
+		Your disclosure of $yeartodo outside activities has been modified/updated by Faculty Affairs staff.<br>
 		You may check it on <a href="$URL">this page</a><br>
 		<br>
 		Best regards,<br>
 		<br>
-		EPFL Faculty Affairs
+		EPFL Faculty Affairs Team
 		};
 
 		write_logs ($scipertodo, "APR $yeartodo act update ($items items)");
