@@ -191,8 +191,7 @@ my @pdf_textes = (
  qq|Once per year, professors shall disclose outside activities, according to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1).|,
  qq|Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1.|,
  qq||,
- qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. |,
- qq|Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3). All activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, shall be listed.|,
+ qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3). All activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, shall be listed.|,
  qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
      );
 
