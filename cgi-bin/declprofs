@@ -112,11 +112,6 @@ if ($BLOCKVPN) {
 $CGI::POST_MAX 	= 1024 * 1000; 
 $query 		   		= CGI->new();
 
-#	- exceptions
-
-$exclude_scipers = '177247,171600,196676,155721,185424';
-$add_scipers 		 = '326993';
-
 escapeParams();
 
 foreach my $item ( split /\//, $pi ) {
