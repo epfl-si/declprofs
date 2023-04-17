@@ -39,9 +39,9 @@ our $basedir 	 	= '/var/www/vhosts/declprofs.epfl.ch';
 use vars qw($roots $exclude_scipers $add_scipers $aeskey $FORCEPREVYEAR);
 require $basedir.'/private/etc/access_params-declprofs';  # Populates the variables above
 
-use vars qw($pi $qs $us $me $tequila $key $sciper $msg $lang $ldap
+use vars qw($pi $qs $us $me $key $sciper $msg $lang $ldap
 			$DEBUG $tmpldir $dbh $query $year $yeartodo $REGEX_SCIPER $login_as
-			@yearsLoop $Persons $AUTHSTRENGTH $authtoken $MAX_SESS_DURATION $AP_email $URL
+			@yearsLoop $Persons $authtoken $MAX_SESS_DURATION $AP_email $URL
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
 			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $PROC $MAX_DELAY $Roles
 			$SESSDIR $test_email $Accreds $allRemarks
@@ -76,9 +76,6 @@ $MINPROFACCRED	= 30; #	- min prof accred (days)
 
 $BLOCKVPN				= 0;
 $TESTMAIL				= 0;
-
-$AUTHSTRENGTH 	= 2;
-#$AUTHSTRENGTH 	= 1;
 
 $AP_URL					= "https://professeurs.epfl.ch/page-26444-en.html";
 $SESSDIR				= $basedir.'/private/sessions/';
@@ -154,33 +151,37 @@ $Accreds = new Cadi::Accreds (
 
 $Roles = new Accred::Roles ();
 
-package User;   #############################################################
-
-sub authenticate {
-  my ($class, $impersonate) = @_;
-
-  unless ($tequila) {
-    $tequila = new Tequila::Client (
+my $_tequila_client;
+sub tequila_client {
+  if (! $_tequila_client) {
+    $_tequila_client = new Tequila::Client (
 	  service    => 'professors activities',
 	  request    => [ 'name','firstname','uniqueid', 'email'],
 	  identities => 'any',
 	  urlaccess  => "https://$ENV{SERVER_NAME}$ENV{REQUEST_URI}?$ENV{QUERY_STRING}",
     );
-    $tequila->init ();
-  } else {
-	  if ($tequila->{attrs}->{authstrength} ne $AUTHSTRENGTH) {
-		  $tequila->logout ();
-	  }
+    $_tequila_client->init ();
   }
 
-  $tequila->setlang ($lang);
-  $tequila->setclientarg ( 'forcelogin', 1 ) ;
-  $tequila->setsessionsdir ($SESSDIR);
+  $_tequila_client->setlang ($lang);
+  $_tequila_client->setclientarg ( 'forcelogin', 1 ) ;
+  $_tequila_client->setsessionsdir ($SESSDIR);
 
-  if ($tequila->{attrs}->{authstrength} ne $AUTHSTRENGTH) {
-	  $tequila->authstrength ($AUTHSTRENGTH);
+  my $AUTHSTRENGTH 	= 2;
+  if ($_tequila_client->{attrs}->{authstrength} ne $AUTHSTRENGTH) {
+	  $_tequila_client->authstrength ($AUTHSTRENGTH);
   }
 
+  return $_tequila_client;
+}
+
+
+package User;   #############################################################
+
+sub authenticate {
+  my ($class, $impersonate) = @_;
+
+  my $tequila = main::tequila_client();
   $tequila->authenticate ();
 
   my $authenticating = bless {
@@ -1487,7 +1488,7 @@ sub checkSession {
 		 $login_txt = qq{<br><br><a href="$me/login?lang=$lang">$login_txt</a>};
 
 	unless ($sessionkey) {
-		$tequila->logout ();
+		tequila_client()->logout ();
 		error ($login_txt, 1);  
 	}
 
@@ -1510,7 +1511,7 @@ sub checkSession {
 	)
 	{
 warn "checkSession ERR sciper : sciper=$sciper, current=$CurrentUser->{sciper} ; $host : $ENV{REMOTE_ADDR}\n";
-		$tequila->logout ();
+		tequila_client()->logout ();
 		error ($login_txt, 1);  
 	}
 }
