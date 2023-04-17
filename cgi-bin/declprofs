@@ -39,12 +39,12 @@ our $basedir 	 	= '/var/www/vhosts/declprofs.epfl.ch';
 use vars qw($roots $exclude_scipers $add_scipers $aeskey $FORCEPREVYEAR);
 require $basedir.'/private/etc/access_params-declprofs';  # Populates the variables above
 
-use vars qw($pi $qs $us $me $tequila $key $sciper $msg $lang $ldap $classid
+use vars qw($pi $qs $us $me $tequila $key $sciper $msg $lang $ldap
 			$DEBUG $tmpldir $dbh $query $year $yeartodo $REGEX_SCIPER $login_as
 			@yearsLoop $Persons $AUTHSTRENGTH $authtoken $MAX_SESS_DURATION $AP_email $URL
-			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate $dbaccrh 
+			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
 			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $PROC $MAX_DELAY $Roles
-			$SESSDIR $test_email $Accreds $profsAccreds $allRemarks
+			$SESSDIR $test_email $Accreds $allRemarks
 			$ROLE_RESPIT $ROLE_ADMINIT $PREPROD $MINPROFACCRED $BLOCKVPN $TESTMAIL $FORCEPREVYEAR
 	);
 
@@ -55,7 +55,6 @@ use constant std_lead 	=> 12/mm;
 use constant small_lead => 10/mm;
 
 #	- accred
-$classid			= 5; 	
 $ROLE_RESPIT	= 19;
 $ROLE_ADMINIT	= 20;
 
@@ -139,13 +138,6 @@ $dbh = new Cadi::CadiDB (
 ) unless $dbh;
 error ("FATAL DB ACCESS") unless $dbh;
 
-$dbaccrh = new Cadi::CadiDB (
-  dbname => 'accred',
-   trace => 1,
-	 utf8  => 1,
-) unless $dbaccrh;
-error ("FATAL DB ACCESS") unless $dbaccrh;
-
 $Persons = new Cadi::Persons (
       caller => '104782',
         root => '104782',
@@ -162,103 +154,10 @@ $Accreds = new Cadi::Accreds (
 
 $Roles = new Accred::Roles ();
 
-my ($sec,$min,$hour,$mday,$mon,$yr,$wday,$yday,$isdst) = localtime(time);
-$mon++;
-$year 				= $yr + 1900;
+package User;   #############################################################
 
-#	----- SIMULATION --
-#$year = '2019';
-#$mon	= 4;
-#	-----
-
-$currentdate 	= sprintf "%04d-%02d-%02d", $year, $mon, $mday;
-$MAX_DELAY		= 14;		#	- next decl delay, days
-
-$LASTDATE			= $year.'-04-10';
-$LASTDATE			= $currentdate if $FORCEPREVYEAR;	#	- keep PREVYEAR open
-
-$yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
-
-$profsAccreds	= getProfsAccreds($yeartodo);
-$allRemarks		= getAllRemarks();
-
-our $CurrentUser = authenticate () ;
-  
-@yearsLoop = getAllYears () if $CurrentUser->{isroot};
-
-my $limit_year = $yeartodo eq $year ? $year + 1 : $yeartodo;
-
-my @pdf_textes = (
- qq|Once per year, professors shall disclose outside activities, according to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1).|,
- qq|Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1.|,
- qq||,
- qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3). All activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, shall be listed.|,
- qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
-     );
-
-	my $reminders	= getReminders ($yeartodo) ;
-  
-  unless ($CurrentUser->{isroot}) {
-  	$LASTDATE = $reminders->{$CurrentUser->{sciper}}->{nxtdelay} if $reminders->{$CurrentUser->{sciper}}->{nxtdelay} && !$FORCEPREVYEAR;
-  }
-
-  if 	  ($PROC eq 'save') {
-  	save   ();
-  } elsif ($PROC eq 'search') {
-  	search   ();
-  } elsif ($PROC eq 'list') {
-  	list   ();
-  } elsif ($PROC eq 'missing') {
-  	missing   ();
-  } elsif ($PROC eq 'clone') {
-  	clone   ();
-  } elsif ($PROC eq 'extract') {
-  	extract   ();
-  } elsif ($PROC eq 'history') {
-  	history   ();
-  } elsif ($PROC eq 'remarks') {
-  	remarks   ();
-  } elsif ($PROC eq 'pdf') {
-  	pdf   ();
-  }
-
-  if ( $CurrentUser->{isroot} ) {
-	  list   ($yeartodo);
-	} else {
-		main ();
-	}
-exit;
-
-#_________________
-sub main {
-
-  my $template;
-  if 	  ( $CurrentUser->{isroot} ) {
-		$template = initTempl('profsact_root_main.tmpl');
-  } elsif ( $CurrentUser->{isprof} ) {
-		my $scipertodo 	= $args->{'scipertodo'} ? $args->{'scipertodo'} : $CurrentUser->{sciper};
-		my $yeartodo   	= $args->{'yeartodo'}   ? $args->{'yeartodo'} : $yeartodo;
-		my @years_loop	= sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($scipertodo);
-		$template 	 		= initTempl('profsact_main.tmpl');
-		$template->param(sNomToDo	 	 => $CurrentUser->{lastname});
-		$template->param(sPrenomToDo => $CurrentUser->{firstname});
-		$template->param(sYearsLoop	 => \@years_loop);
-
-  } else {
-  	error ("$err_msgs->{noaccess}") ;
-  }
-  
-	$template->param(sNotif 	=> $args->{submit});
-	$template->param(sPathMe 	=> $me);
-  $template->param(sMsg 		=> $msg);
-  binmode(STDOUT, ":utf8");
-  print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
-  exit;
-}
-
-#_________________
 sub authenticate {
-  my $CurrentUser;
+  my ($class, $impersonate) = @_;
 
   unless ($tequila) {
     $tequila = new Tequila::Client (
@@ -284,37 +183,284 @@ sub authenticate {
 
   $tequila->authenticate ();
 
-#  my $profsAccreds	 		 		= getProfsAccreds($yeartodo);
+  my $authenticating = bless {
+    sciper => $tequila->{attrs}->{uniqueid},
+    lastname => $tequila->{attrs}->{name},
+    firstname => $tequila->{attrs}->{firstname},
+    email => $tequila->{attrs}->{email}
+  }, $class;
 
-  $CurrentUser->{sciper} 		= $tequila->{attrs}->{uniqueid};
-  $CurrentUser->{lastname}	= $tequila->{attrs}->{name};
-  $CurrentUser->{firstname} = $tequila->{attrs}->{firstname};
-  $CurrentUser->{email}  		= $tequila->{attrs}->{email};
-  $CurrentUser->{isroot} 		= $roots->{$CurrentUser->{sciper}};
-  $CurrentUser->{isprof} 		= defined $profsAccreds->{$CurrentUser->{sciper}};
-
-#	- impersonate
-  if ( $login_as && $CurrentUser->{isroot}) {
-	  my $login_as_user 	 	 		= getUserBySciper ($login_as);
-	  $CurrentUser->{sciper} 		= $login_as;
-	  $CurrentUser->{lastname}	= $login_as_user->{lastname};
-	  $CurrentUser->{firstname} = $login_as_user->{firstname};
-	  $CurrentUser->{email}			= $login_as_user->{email};
-		$CurrentUser->{isprof} 		= defined $profsAccreds->{$CurrentUser->{sciper}};
-	  $CurrentUser->{isroot} 		= 0;
-	  $me .= qq{/login_as=$login_as};
+  if ( $impersonate && $authenticating->is_root) {
+    my $impersonated = $class->by_sciper($impersonate);
+    warn "impersonate : $impersonated->{sciper}, $impersonated->{firstname}, $impersonated->{lastname}\n";
+    return $impersonated;
+  } else {
+    warn "authenticate : $authenticating->{sciper}, $authenticating->{firstname}, $authenticating->{lastname}\n";
   }
-#	--
 
-warn "authenticate : $CurrentUser->{sciper}, $CurrentUser->{firstname}, $CurrentUser->{lastname}, $CurrentUser->{isprof}, $authtoken\n";
+  return $authenticating;
+}
 
-  checkSession ($authtoken) ;
-  $authtoken	= makeSession ()  ;
-  $me		     .= qq{/$authtoken};
+sub is_root {
+  my ($self) = @_;
+  return $main::roots->{$self->{sciper}};
+}
 
-  error ("$err_msgs->{noaccess}") unless $CurrentUser->{isprof} || $CurrentUser->{isroot};
+sub by_sciper {
+	my ($class, $sciper) = @_;
 
-  return $CurrentUser;
+	return unless $sciper;
+	main::error ("malformed sciper") unless $sciper =~ m/$main::REGEX_SCIPER/;
+
+  my $pers = $main::Persons->getPerson ($sciper);
+	return bless {
+			sciper		=> $sciper,
+			lastname  => $pers->{name},
+			firstname => $pers->{firstname},
+			email  		=> $pers->{email},	  	
+	  }, $class;
+}
+
+sub is_prof {
+  my $sciper = shift->{sciper};
+  Profs->all->is_prof($sciper) || grep { $_ eq $sciper } (split m/,/, $main::add_scipers);
+}
+
+sub is_root {
+  return $main::roots->{shift->{sciper}};
+}
+
+package Profs;   #############################################################
+
+sub all { Profs->by_year() }
+
+our %_instances;
+sub by_year {
+  my ($class, $yeartodo) = @_;
+
+  if (! $_instances{$yeartodo}) {
+    my $accreds = {};
+    my $unitMap = $class->_do_load($yeartodo);
+    foreach my $sciper (keys $unitMap) {
+      $accreds->{$sciper} = $unitMap->{$sciper};
+    }
+    $_instances{$yeartodo} = bless { year => $yeartodo, accreds => $accreds }, $class;
+  }
+  return $_instances{$yeartodo};
+}
+
+sub is_prof {
+  my ($class, $sciper) = @_;
+  return exists $class->all()->{accreds}->{$sciper};
+}
+
+sub _do_load {
+  my ($class, $yeartodo) = @_;
+  my $profsAccreds = {};
+  my $sql = qq{select distinct persid, unitid, ordre, debval, finval from accreds where classid=5};
+  if ($yeartodo) {
+    $sql .= qq{ and
+  				((debval >= '$yeartodo-01-01' and debval < '$yeartodo-12-31') or
+  				 (debval <  '$yeartodo-01-01' and (finval is null or finval > '$yeartodo-12-31')) or
+  				 (finval >  '$yeartodo-01-01' and finval <= '$yeartodo-12-31')
+  				)};
+  }
+  $sql .= qq{  order by persid, ordre };
+
+  my $sth = $class->dbaccrh->prepare ($sql);
+  main::error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ();
+  main::error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  my $profsAccreds;
+  while (my $entry = $sth->fetchrow_hashref) {
+ 		next if $main::exclude_scipers =~ /$entry->{persid}/;
+  	if ( $entry->{finval} ) {
+  		my ($Dd,$Dh,$Dm,$Ds) = _getAccredDuration ($entry, $yeartodo);
+  		next if $Dd < 30;
+ warn "$entry->{persid}: $entry->{debval}:$entry->{finval} :  ($Dd,$Dh,$Dm,$Ds)\n" if $main::exclude_scipers =~ /$entry->{persid}/;
+  	}
+    $profsAccreds->{$entry->{persid}} = $entry->{unitid} unless defined $profsAccreds->{$entry->{persid}} ;
+  }
+  
+  #	- handle exceptions
+  my $sql = qq{select distinct persid, unitid, ordre, debval, finval from accreds where 
+  				((debval >= '$yeartodo-01-01' and debval < '$yeartodo-12-31') or
+  				 (debval <  '$yeartodo-01-01' and (finval is null or finval > '$yeartodo-12-31')) or
+  				 (finval >  '$yeartodo-01-01' and finval <= '$yeartodo-12-31')
+  				)};
+  	 $sql .= qq{ and persid in ($main::add_scipers)} if $main::add_scipers;
+  	 $sql .= qq{ order by persid};
+  my $sth = $class->dbaccrh->prepare ($sql);
+  main::error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute ();
+  main::error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+  while (my $entry = $sth->fetchrow_hashref) {
+  	if ( $entry->{finval} ) {
+  		my ($Dd,$Dh,$Dm,$Ds) = _getAccredDuration ($entry, $yeartodo);
+  		next if $Dd < $main::MINPROFACCRED;
+  	}
+    $profsAccreds->{$entry->{persid}} = $entry->{unitid} unless defined $profsAccreds->{$entry->{persid}} ;
+  }
+ 
+  return $profsAccreds;
+}
+
+sub _getAccredDuration {
+	my ($entry, $yeartodo) = @_;
+
+	if ($yeartodo) {
+		$entry->{debval} = "$yeartodo-01-01 00:00:00" if $entry->{debval} lt "$yeartodo-01-01 00:00:00" ;
+	}
+	my ($date1, $time1) = split / /, $entry->{debval};
+	$date1 =~ s/\-0/-/g; $time1 =~ s/\:0/:/g;
+	my ($yy1, $mm1, $dd1) = split /-/, $date1; my ($hh1, $min1, $sec1) = split /-/, $time1;
+	my ($date2, $time2) = split / /, $entry->{finval};
+	$date2 =~ s/\-0/-/g; $time2 =~ s/\:0/:/g;
+	my ($yy2, $mm2, $dd2) = split /-/, $date2; my ($hh2, $min2, $sec2) = split /-/, $time2;
+
+	return Date::Calc::Delta_DHMS ( 
+		$yy1,$mm1,$dd1,$hh1,$min1,$sec1,
+		$yy2,$mm2,$dd2,$hh2,$min2,$sec2
+	);
+}
+
+sub scipers {
+  my ($self) = @_;
+  return keys %{$self->{accreds}};
+}
+
+sub hierarchy {
+  my ($self, $sciper) = @_;
+	my $accreds = $self->{accreds} ;
+
+  if (! $self->{unites}) {
+	my %unites = map { $accreds->{$_}  => 1 } keys %$accreds;
+	my $unitids= join ",", keys %unites;
+
+	my $sql = qq{select id_unite, hierarchie from dinfo.unites1 where id_unite in ($unitids)};
+	my $sth = $self->dbaccrh->prepare ($sql);
+	main::error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+	my  $rv = $sth->execute ();
+	main::error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+	my $units;
+	while (my $entry = $sth->fetchrow_hashref) {
+	  $units->{$entry->{id_unite}} = substr ($entry->{hierarchie}, 5 );
+	}
+	$self->{unites} = $units;
+  }
+
+  return $self->{unites}->{$self->{accreds}->{$sciper}};
+}
+
+my $_dbaccrh;
+sub dbaccrh {
+  my ($class) = @_;
+  if (! $_dbaccrh) {
+    $_dbaccrh = new Cadi::CadiDB (
+  dbname => 'accred',
+   trace => 1,
+	 utf8  => 1,
+);
+main::error ("FATAL DB ACCESS") unless $_dbaccrh;
+  }
+  return $_dbaccrh;
+}
+
+
+package main;   #############################################################
+
+
+my ($sec,$min,$hour,$mday,$mon,$yr,$wday,$yday,$isdst) = localtime(time);
+$mon++;
+$year 				= $yr + 1900;
+
+#	----- SIMULATION --
+#$year = '2019';
+#$mon	= 4;
+#	-----
+
+$currentdate 	= sprintf "%04d-%02d-%02d", $year, $mon, $mday;
+$MAX_DELAY		= 14;		#	- next decl delay, days
+
+$LASTDATE			= $year.'-04-10';
+$LASTDATE			= $currentdate if $FORCEPREVYEAR;	#	- keep PREVYEAR open
+
+$yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
+
+$allRemarks		= getAllRemarks();
+
+our $CurrentUser = User->authenticate($login_as);
+
+@yearsLoop = getAllYears () if $CurrentUser->is_root;
+
+my $limit_year = $yeartodo eq $year ? $year + 1 : $yeartodo;
+
+my @pdf_textes = (
+ qq|Once per year, professors shall disclose outside activities, according to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1).|,
+ qq|Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1.|,
+ qq||,
+ qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3). All activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, shall be listed.|,
+ qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
+     );
+
+	my $reminders	= getReminders ($yeartodo) ;
+  
+  unless ($CurrentUser->is_root) {
+  	$LASTDATE = $reminders->{$CurrentUser->{sciper}}->{nxtdelay} if $reminders->{$CurrentUser->{sciper}}->{nxtdelay} && !$FORCEPREVYEAR;
+  }
+
+  if 	  ($PROC eq 'save') {
+  	save   ();
+  } elsif ($PROC eq 'search') {
+  	search   ();
+  } elsif ($PROC eq 'list') {
+  	list   ();
+  } elsif ($PROC eq 'missing') {
+  	missing   ();
+  } elsif ($PROC eq 'clone') {
+  	clone   ();
+  } elsif ($PROC eq 'extract') {
+  	extract   ();
+  } elsif ($PROC eq 'history') {
+  	history   ();
+  } elsif ($PROC eq 'remarks') {
+  	remarks   ();
+  } elsif ($PROC eq 'pdf') {
+  	pdf   ();
+  }
+
+  if ( $CurrentUser->is_root ) {
+	  list   ($yeartodo);
+	} else {
+		main ();
+	}
+exit;
+
+#_________________
+sub main {
+
+  my $template;
+  if 	  ( $CurrentUser->is_root ) {
+		$template = initTempl('profsact_root_main.tmpl');
+  } elsif ( $CurrentUser->is_prof ) {
+		my $scipertodo 	= $args->{'scipertodo'} ? $args->{'scipertodo'} : $CurrentUser->{sciper};
+		my $yeartodo   	= $args->{'yeartodo'}   ? $args->{'yeartodo'} : $yeartodo;
+		my @years_loop	= sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($scipertodo);
+		$template 	 		= initTempl('profsact_main.tmpl');
+		$template->param(sNomToDo	 	 => $CurrentUser->{lastname});
+		$template->param(sPrenomToDo => $CurrentUser->{firstname});
+		$template->param(sYearsLoop	 => \@years_loop);
+
+  } else {
+  	error ("$err_msgs->{noaccess}") ;
+  }
+  
+	$template->param(sNotif 	=> $args->{submit});
+	$template->param(sPathMe 	=> $me);
+  $template->param(sMsg 		=> $msg);
+  binmode(STDOUT, ":utf8");
+  print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
+  exit;
 }
 
 #_________________
@@ -361,7 +507,7 @@ sub getProfActDataLoop {
 			@year_act = @cloned_fromyear;
 		}
 
-		my $crt_remarks = $CurrentUser->{isroot} ? $allRemarks->{$crtyear}->{$scipertodo}->{remark} : $allRemarks->{$crtyear}->{$scipertodo}->{prof_remark};
+		my $crt_remarks = $CurrentUser->is_root ? $allRemarks->{$crtyear}->{$scipertodo}->{remark} : $allRemarks->{$crtyear}->{$scipertodo}->{prof_remark};
 
 		push @years_loop, {
 			year 				=> $crtyear,
@@ -371,7 +517,7 @@ sub getProfActDataLoop {
 			submitted 	=> $submitted,
 			yearAct 		=> \@year_act,
 			sPathMe 		=> $me, 
-			isroot 			=> $CurrentUser->{isroot}, 
+			isroot 			=> $CurrentUser->is_root, 
 			donebyroot	=> $donebyroot, 
 			crt_remarks	=> $crt_remarks, 
 			remarks			=> $allRemarks->{$crtyear}->{$scipertodo}->{remark}, 
@@ -387,7 +533,7 @@ sub getProfActDataLoop {
 		} else {
 			$modcrtyr 	= 1 if $year eq $yeartodo;
 		}
-		my $crt_remarks = $CurrentUser->{isroot} ? $allRemarks->{$yeartodo}->{$scipertodo}->{remark} : $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark};
+		my $crt_remarks = $CurrentUser->is_root ? $allRemarks->{$yeartodo}->{$scipertodo}->{remark} : $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark};
 		my @year_act = $clone_fromyear
 								 ? @cloned_fromyear 
 								 : ( { 
@@ -403,7 +549,7 @@ sub getProfActDataLoop {
 			yearAct	  	=> \@year_act,
 			isCrtYear 	=> $yeartodo eq $year,
 			sPathMe   	=> $me, 
-			isroot 	  	=> $CurrentUser->{isroot}, 
+			isroot 	  	=> $CurrentUser->is_root, 
 			crt_remarks	=> $crt_remarks, 
 			remarks			=> $allRemarks->{$yeartodo}->{$scipertodo}->{remark}, 
 			prof_remarks=> $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark}, 
@@ -417,18 +563,18 @@ sub getProfActDataLoop {
 #_________________
 sub missing {
 
-  error ('No access to this function') unless $CurrentUser->{isroot};
+  error ('No access to this function') unless $CurrentUser->is_root;
 	my $yeartodo = $args->{yeartodo} ;
 #warn ">> missing : yeartodo=$yeartodo\n";
-	$profsAccreds			= getProfsAccreds($yeartodo);
   my $submittedActs = getSubmitted($yeartodo);
-  my $units 				= getUnits ($profsAccreds);
-  my $persData 			= $Persons->getManyPersonsInfos(keys %$profsAccreds);
+  my $profs = Profs->by_year($yeartodo);
+  my $units 				= $profs->hierarchy($sciper);
+  my $persData 			= $Persons->getManyPersonsInfos($profs->scipers);
   my $reminders			= getReminders ($yeartodo) ;
 
 	my $emails;
   my @profsLoop;
-  foreach my $sciper ( sort { $persData->{$a}->{name}.$persData->{$a}->{firstname} cmp $persData->{$b}->{name}.$persData->{$b}->{firstname} } keys %$profsAccreds ) 
+  foreach my $sciper ( sort { $persData->{$a}->{name}.$persData->{$a}->{firstname} cmp $persData->{$b}->{name}.$persData->{$b}->{firstname} } $profs->scipers ) 
   {
 		next if $submittedActs->{$sciper};
   	my $person 		= $persData->{$sciper};
@@ -442,7 +588,7 @@ sub missing {
   		email			=> $person->{email},
   		reminddate=> $reminders->{$person->{sciper}}->{reminddate},
   		nxtdelay	=> $reminders->{$person->{sciper}}->{nxtdelay},
-  		unit			=> $units->{$profsAccreds->{$sciper}},
+  		unit			=> $units,
 			hasremarks=> $hasremarks, 
 			remarks		=> $allRemarks->{$yeartodo}->{$sciper}->{remark}, 
 			prof_remarks=> $allRemarks->{$yeartodo}->{$sciper}->{prof_remark}, 
@@ -537,11 +683,12 @@ sub missing {
 sub list {
 	my $yeartodo = shift;
 
-  error ('No access to this function') unless $CurrentUser->{isroot};
+  error ('No access to this function') unless $CurrentUser->is_root;
   $yeartodo = $args->{'yeartodo'} if $args->{'yeartodo'};
   error ('Year todo not specified') unless $yeartodo;
   
 #  my $actByProf = getSubmitted($yeartodo);
+  my $profs = Profs->by_year($yeartodo);
   my $actByProf 		= getAllAct($yeartodo);
   my $crtyrprofs		= scalar keys %$actByProf;
   my @scipers				= keys %$actByProf;
@@ -573,7 +720,7 @@ sub list {
   	};
   }
 
-	my $allprofs  = scalar keys %$profsAccreds;
+	my $allprofs  = scalar $profs->scipers;
   my $missing		= $allprofs - $crtyrprofs;
 
   my $template = initTempl('profsact_root_list.tmpl');
@@ -594,14 +741,14 @@ sub list {
 #_________________
 sub search {
 
-  error ('No access to this function') unless $CurrentUser->{isroot};
+  error ('No access to this function') unless $CurrentUser->is_root;
   my $search_item = $args->{'search_item'};
      $search_item = $args->{'search_item'} unless $search_item;
   error ('No search key') unless $search_item;
   
   my $users;
   if ( $search_item =~ m/$REGEX_SCIPER/) {
-  	my $user = getUserBySciper($search_item);
+  	my $user = User->by_sciper($search_item);
   	$users->{$search_item} = $user if $user;
   } else {
   	$users = getUsersByName ($search_item);
@@ -611,7 +758,7 @@ sub search {
   
   my @outloop;
   foreach my $sciper ( keys %$users ) {
-		next unless $users->{$sciper}->{isprof};
+		next unless $users->{$sciper}->is_prof;
 		push @outloop, {
 				sPathMe 	=> $me, 
 				sciper 		=> $sciper,
@@ -624,7 +771,7 @@ sub search {
   } 
 
   my $template;
-  if 	  ( $CurrentUser->{isroot} ) {
+  if 	  ( $CurrentUser->is_root ) {
   		if (scalar @outloop == 1 ) {	#	- one result
 				$template 		 = initTempl('profsact_root_main.tmpl');
 				my @years_loop = sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($outloop[0]->{sciper});
@@ -638,7 +785,7 @@ sub search {
 				$template->param(sSearch	 	 => $search_item);
 				$template->param(sOutLoop	 	 => \@outloop);
   		}
-  } elsif ( $CurrentUser->{isprof} ) {
+  } elsif ( $CurrentUser->is_prof ) {
 		my $scipertodo = $args->{'scipertodo'} ? $args->{'scipertodo'} : $CurrentUser->{sciper};
 		my $yeartodo   = $args->{'yeartodo'} ? $args->{'yeartodo'} : $yeartodo;
 		my $prof_act   = getProfAct ($scipertodo, $yeartodo);
@@ -682,12 +829,12 @@ sub getAllRemarks {
 sub remarks {
 
 	my $scipertodo = $args->{'scipertodo'} ;
-#	error ('No access to this function') unless $CurrentUser->{isroot} ;
+#	error ('No access to this function') unless $CurrentUser->is_root ;
 	my $yeartodo 	 = $args->{'yeartodo'} ;
 	error ('No access yeartodo') unless $yeartodo ;
 	
 	my $remarks		  = $args->{'remarks'} ;
-	my $remark_type = $CurrentUser->{isroot} ? 'remark' : 'prof_remark';
+	my $remark_type = $CurrentUser->is_root ? 'remark' : 'prof_remark';
 
 #warn "--> remarks :: $scipertodo, $yeartodo :: $remarks	\n";	
 	my $sql;
@@ -716,7 +863,7 @@ sub remarks {
 sub history {
 
 	my $scipertodo 	= $args->{'scipertodo'} ? $args->{'scipertodo'} :  $CurrentUser->{sciper};
-	error ('No access to this function') unless $CurrentUser->{isroot} || $CurrentUser->{sciper} eq $scipertodo;
+	error ('No access to this function') unless $CurrentUser->is_root || $CurrentUser->{sciper} eq $scipertodo;
 #warn "--> history  for $scipertodo\n";
 
 	my $prof_act  = getProfHistory ($scipertodo);
@@ -756,8 +903,8 @@ sub history {
 #_________________
 sub clone {
 
-	my $UserTodo = $args->{'scipertodo'} ? getUserBySciper($args->{'scipertodo'}) : $CurrentUser;
-	error ('No access to this function') unless $UserTodo->{isprof} || $UserTodo->{isroot};
+	my $UserTodo = $args->{'scipertodo'} ? User->by_sciper($args->{'scipertodo'}) : $CurrentUser;
+	error ('No access to this function') unless $UserTodo->is_prof || $UserTodo->is_root;
 	my $fromyear = $args->{'fromyear'};
 	error ('Source year undefined') unless $fromyear;
 
@@ -799,7 +946,7 @@ sub clone {
 	}
 
 	$me =~ s/\/clone.*$//;
-	$me.= qq{/search?search_item=$UserTodo->{sciper}} if $CurrentUser->{isroot} ;
+	$me.= qq{/search?search_item=$UserTodo->{sciper}} if $CurrentUser->is_root ;
 
         binmode(STDOUT, ":utf8");
 	print qq{
@@ -825,7 +972,7 @@ sub clone {
 
 sub clone_OLD {
 
-#	error ('No access to this function') unless $CurrentUser->{isprof};
+#	error ('No access to this function') unless $CurrentUser->is_prof;
 	my $fromyear = $args->{'fromyear'};
 	error ('Source year undefined') unless $fromyear;
 warn "--> clone fromyear $fromyear for $CurrentUser->{sciper}, index=$args->{index})\n";
@@ -885,7 +1032,7 @@ warn "--> clone\n".Dumper($act_to_clone);
 #_________________
 sub extract {
 
-	error ('No access to this function') unless $CurrentUser->{isroot};
+	error ('No access to this function') unless $CurrentUser->is_root;
 	my $yeartodo 		= $args->{'yeartodo'};
 	my $scipertodo 	= $args->{'scipertodo'};
 
@@ -895,13 +1042,13 @@ sub extract {
 	if ($yeartodo) {
 		error ('Source year undefined') unless $yeartodo;
 		my $submittedActs = getSubmitted($yeartodo);
-		my $units 				= getUnits ($profsAccreds) ;
-		
+		my $units 				= Profs->by_year($yeartodo)->hierarchy($sciper);
+
+		my $profs = Profs->by_year($yeartodo);
 		my $dataSource;
 		my @scipers;
 		my $allroles;
 		if ( $args->{'what'} eq 'missing' ) {
-			$dataSource = $profsAccreds;
 			$file_name  = qq{prof_missing_decl_${yeartodo}.csv};
 
 			$allroles		   		 = $Roles->getRoles( () )  ;
@@ -910,10 +1057,11 @@ sub extract {
 			my $admins 				 = $allroles->{$ROLE_ADMINIT};
 			my @admins_scipers = map { keys %{$admins->{$_}} } keys %$admins;
 
+			$dataSource = map { $_ => 1 } $profs->scipers;
 			@scipers					 = ( keys %$dataSource, @resps_scipers, @admins_scipers );
 
 		} else {
-			$dataSource = $submittedActs;
+			my $dataSource = $submittedActs;
 			$file_name  = qq{prof_decl_${yeartodo}.csv};
 			@scipers		= keys %$dataSource;
 		}
@@ -931,12 +1079,12 @@ sub extract {
 			if ( $args->{'what'} eq 'missing' ) {
 				next if $submittedActs->{$sciper};
 
-				my $unitResps  = $allroles->{$ROLE_RESPIT}->{$profsAccreds->{$sciper}};
-				my $unitAdmins = $allroles->{$ROLE_ADMINIT}->{$profsAccreds->{$sciper}};
+				my $unitResps  = $allroles->{$ROLE_RESPIT}->{$profs->scipers};
+				my $unitAdmins = $allroles->{$ROLE_ADMINIT}->{$profs->scipers};
 				my $resps  = join ",", map { "$persData->{$_}->{name} $persData->{$_}->{firstname}" } keys %$unitResps;
 				my $admins = join ",", map { "$persData->{$_}->{name} $persData->{$_}->{firstname}" } keys %$unitAdmins;
 
-				$output .= qq{$yeartodo\t$sciper\t$persData->{$sciper}->{name}\t$persData->{$sciper}->{firstname}\t$units->{$profsAccreds->{$sciper}}\t$resps\t$admins\n};
+				$output .= qq{$yeartodo\t$sciper\t$persData->{$sciper}->{name}\t$persData->{$sciper}->{firstname}\t$units\t$resps\t$admins\n};
 				
 			} else {
 				my $prof_data = $submittedActs->{$sciper};
@@ -953,7 +1101,7 @@ sub extract {
 #					$row->{activity}  = encode('UTF-8', $row->{activity});
 #					$row->{principal} = encode('UTF-8', $row->{principal});
 
-					$output .= qq{$yeartodo\t$sciper\t$persData->{$sciper}->{name}\t$persData->{$sciper}->{firstname}\t$units->{$profsAccreds->{$sciper}}\t$row->{ordre}\t$row->{activity}\t$row->{principal}\n};
+					$output .= qq{$yeartodo\t$sciper\t$persData->{$sciper}->{name}\t$persData->{$sciper}->{firstname}\t$units\t$row->{ordre}\t$row->{activity}\t$row->{principal}\n};
 				}
 			}
 		}
@@ -995,7 +1143,7 @@ sub extract {
 #_________________
 sub save {
 
-#	error ('No access to this function') unless $CurrentUser->{isprof};
+#	error ('No access to this function') unless $CurrentUser->is_prof;
 	my $yeartodo = $args->{year};
 
   unless ($args->{save_apr_remarks}) {
@@ -1020,8 +1168,8 @@ sub save {
   }
 
 	my $remarks		  = $args->{'remarks'} ;
-	my $remark_type = $CurrentUser->{isroot} ? 'remark' : 'prof_remark';
-	my $doneby			= $CurrentUser->{sciper} if $CurrentUser->{isroot}; 
+	my $remark_type = $CurrentUser->is_root ? 'remark' : 'prof_remark';
+	my $doneby			= $CurrentUser->{sciper} if $CurrentUser->is_root; 
 	my $sql;
 	if ( defined $allRemarks->{$yeartodo}->{$args->{scipertodo}} ) {
 		$sql = qq{update remarks set $remark_type=?, doneby=? where persid=? and year=? };
@@ -1059,94 +1207,6 @@ sub getReminders {
     $reminders->{$entry->{persid}} = $entry;
   }
   return $reminders;
-
-}
-
-#_________________
-sub getProfsAccreds {
-	my $yeartodo 	 = shift ;
-
-  my $profsAccreds;
-  my $sql = qq{select distinct persid, unitid, ordre, debval, finval from accreds where classid=$classid and
-  				((debval >= '$yeartodo-01-01' and debval < '$yeartodo-12-31') or
-  				 (debval <  '$yeartodo-01-01' and (finval is null or finval > '$yeartodo-12-31')) or
-  				 (finval >  '$yeartodo-01-01' and finval <= '$yeartodo-12-31')
-  				)  order by persid, ordre };
-  my $sth = $dbaccrh->prepare ($sql);
-  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
-  my  $rv = $sth->execute ();
-  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
-  my $profsAccreds;
-  while (my $entry = $sth->fetchrow_hashref) {
- 		next if $exclude_scipers =~ /$entry->{persid}/;
-  	if ( $entry->{finval} ) {
-  		my ($Dd,$Dh,$Dm,$Ds) = getAccredDuration ($yeartodo, $entry);
-  		next if $Dd < 30;
- warn "$entry->{persid}: $entry->{debval}:$entry->{finval} :  ($Dd,$Dh,$Dm,$Ds)\n" if $exclude_scipers =~ /$entry->{persid}/; 		
-  	}
-    $profsAccreds->{$entry->{persid}} = $entry->{unitid} unless defined $profsAccreds->{$entry->{persid}} ;
-  }
-  
-  #	- handle exceptions
-  my $sql = qq{select distinct persid, unitid, ordre, debval, finval from accreds where 
-  				((debval >= '$yeartodo-01-01' and debval < '$yeartodo-12-31') or
-  				 (debval <  '$yeartodo-01-01' and (finval is null or finval > '$yeartodo-12-31')) or
-  				 (finval >  '$yeartodo-01-01' and finval <= '$yeartodo-12-31')
-  				)};
-  	 $sql .= qq{ and persid in ($add_scipers)} if $add_scipers;
-  	 $sql .= qq{ order by persid};
-  my $sth = $dbaccrh->prepare ($sql);
-  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
-  my  $rv = $sth->execute ();
-  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
-  while (my $entry = $sth->fetchrow_hashref) {
-  	if ( $entry->{finval} ) {
-  		my ($Dd,$Dh,$Dm,$Ds) = getAccredDuration ($yeartodo, $entry);
-  		next if $Dd < $MINPROFACCRED;
-  	}
-    $profsAccreds->{$entry->{persid}} = $entry->{unitid} unless defined $profsAccreds->{$entry->{persid}} ;
-  }
- 
-  return $profsAccreds;
-
-}
-
-#_________________
-sub getAccredDuration {
-	my ($yeartodo, $entry) = @_;
-
-	$entry->{debval} = "$yeartodo-01-01 00:00:00" if $entry->{debval} lt "$yeartodo-01-01 00:00:00" ;
-	my ($date1, $time1) = split / /, $entry->{debval};
-	$date1 =~ s/\-0/-/g; $time1 =~ s/\:0/:/g;
-	my ($yy1, $mm1, $dd1) = split /-/, $date1; my ($hh1, $min1, $sec1) = split /-/, $time1;
-	my ($date2, $time2) = split / /, $entry->{finval};
-	$date2 =~ s/\-0/-/g; $time2 =~ s/\:0/:/g;
-	my ($yy2, $mm2, $dd2) = split /-/, $date2; my ($hh2, $min2, $sec2) = split /-/, $time2;
-
-	return Date::Calc::Delta_DHMS ( 
-		$yy1,$mm1,$dd1,$hh1,$min1,$sec1,
-		$yy2,$mm2,$dd2,$hh2,$min2,$sec2
-	);
-}
-
-#_________________
-sub getUnits {
-	my $accreds = shift ;
-	
-	my %unites = map { $accreds->{$_}  => 1 } keys %$accreds;
-	my $unitids= join ",", keys %unites;
-
-  my $sql = qq{select id_unite, hierarchie from dinfo.unites1 where id_unite in ($unitids)};
-  my $sth = $dbaccrh->prepare ($sql);
-  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
-  my  $rv = $sth->execute ();
-  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
-  my $units;
-  while (my $entry = $sth->fetchrow_hashref) {
-    $units->{$entry->{id_unite}} = substr ($entry->{hierarchie}, 5 );
-  }
-  return $units;
-
 }
 
 #_________________
@@ -1267,7 +1327,7 @@ sub putProfAct {
   my ($yeartodo, $data) = @_;
 
 	my $scipertodo = $CurrentUser->{sciper};
-	   $scipertodo = $args->{scipertodo} if $CurrentUser->{isroot} && $args->{scipertodo};
+	   $scipertodo = $args->{scipertodo} if $CurrentUser->is_root && $args->{scipertodo};
 
 	#	- all current year act inactive
   my $sql = qq{update profsacts set status=? where persid=? and year=? and status <> ?};
@@ -1304,7 +1364,7 @@ sub putProfAct {
   my $msg;
   if ( $scipertodo ne $CurrentUser->{sciper} ) {
 
-  	my $user = getUserBySciper($scipertodo);
+  	my $user = User->by_sciper($scipertodo);
   	error ("person not found") unless $user;
 
 	  my $subj = "APR modification - annual disclosure of $yeartodo outside activities";
@@ -1363,7 +1423,7 @@ sub initTempl {
 	   die_on_bad_params => 0) or die "err : $!";
   $template->param(serrMsg 		=> $errMsg);
   $template->param(sPathMe 		=> $me);
-  $template->param(isRoot	 		=> $CurrentUser->{isroot});
+  $template->param(isRoot	 		=> $CurrentUser->is_root);
   $template->param(sYear 			=> $year);
   $template->param(sYearToDo	=> $yeartodo);
   $template->param(isCrtYear	=> $yeartodo eq $year);
@@ -1619,36 +1679,10 @@ sub getUsersByName {
   my $persons;
   foreach my $sciper ( $Persons->findPersons ($name) ) {
   	next unless $sciper =~ m/$REGEX_SCIPER/;
-  	$persons->{$sciper} = getUserBySciper ($sciper);
+  	$persons->{$sciper} = User->by_sciper ($sciper);
   }
 
   return $persons;
-
-}
-
-#_________________
-sub getUserBySciper {
-	my ($sciper) = @_;
-
-#warn "--> getUserBySciper A : $sciper\n";
-	return unless $sciper;
-	error ("malformed sciper") unless $sciper =~ m/$REGEX_SCIPER/;
-
-  my $pers = $Persons->getPerson ($sciper);
-  my $isprof;
-  map { $isprof = $_->{accred}->{class} =~ /Corps professoral/ } @{$pers->{accreds}};
-#warn "--> getUserBySciper B : $sciper : isprof=$isprof\n";
-
-	#	- chk all acreds
-	$isprof = 1 if defined $profsAccreds->{$sciper};
-
-	return {
-			sciper		=> $sciper,
-			lastname  => $pers->{name},
-			firstname => $pers->{firstname},
-			email  		=> $pers->{email},	  	
-			isprof	  => $isprof,	  	
-	  };
 
 }
 
@@ -1710,7 +1744,7 @@ sub makePDF {
 		my $activity = shift;
 
 		my $scipertodo = $CurrentUser->{sciper};
-		   $scipertodo = $args->{'scipertodo'} if $args->{'scipertodo'} && $CurrentUser->{isroot};
+		   $scipertodo = $args->{'scipertodo'} if $args->{'scipertodo'} && $CurrentUser->is_root;
 
 		$yeartodo   = $args->{'yeartodo'} ? $args->{'yeartodo'} : $yeartodo;
 		my $pdf_file 	 = $pdf_dir.$scipertodo.'_'.$yeartodo.'.pdf';
@@ -1723,7 +1757,7 @@ sub makePDF {
 
 		my $ypos = put_pdf_header ();
 			 $ypos = put_pdf_description ($ypos );		
-			 $ypos = put_pdf_identity ($ypos );		
+			 $ypos = put_pdf_identity ($ypos, $yeartodo);
 			 $ypos = put_pdf_table_header ($ypos );		
 
 		#	- LOOP ON ITEMS
@@ -1849,24 +1883,21 @@ sub put_pdf_table_header {
 }
 
 sub put_pdf_identity {
+	my ($ypos, $yeartodo) = @_;
+	   $ypos -= 7/mm;
 
-#	my $profsAccreds 	 = getProfsAccreds($yeartodo);
 	my $scipertodo = $CurrentUser->{sciper};
 	
 	my $name;
-	if ( $CurrentUser->{isroot} && $args->{'scipertodo'} ) {
+	if ( $CurrentUser->is_root && $args->{'scipertodo'} ) {
 		$scipertodo = $args->{'scipertodo'}	;
-  	my $user 		= getUserBySciper($scipertodo);
+  	my $user 		= User->by_sciper($scipertodo);
   	error ("person not found") unless $user;
 		$name	= "$user->{firstname} $user->{lastname}";
 	} else {
 		$name = "$CurrentUser->{firstname} $CurrentUser->{lastname}";
 	}
-	my $units 		 = getUnits ( { $scipertodo => $profsAccreds->{$scipertodo}, } ) ;
-	my $hierarchie = $units->{$profsAccreds->{$scipertodo}};
-
-	my $ypos = shift;
-	   $ypos -= 7/mm;
+	my $hierarchie = Profs->by_year($yeartodo)->hierarchy($scipertodo);
 
 	$page_text->font( $font{$std_font}{'Bold'}, 9/pt );
 	$page_text->fillcolor('red');
