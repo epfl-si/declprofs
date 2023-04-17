@@ -901,6 +901,7 @@ sub remarks {
 	write_logs ($scipertodo, "remarks $yeartodo");
 	
         binmode(STDOUT, ":utf8");
+        print "Content-Type: text/html; charset=UTF-8\n\n";
 	print qq{
 	<script>
 	location.href="$me";
@@ -999,6 +1000,7 @@ sub clone {
 	$me.= qq{/search?search_item=$UserTodo->{sciper}} if $CurrentUser->is_root ;
 
         binmode(STDOUT, ":utf8");
+        print "Content-Type: text/html; charset=UTF-8\n\n";
 	print qq{
 	<script>
 	location.href="$me";
@@ -1234,12 +1236,13 @@ sub save {
 
 	$me =~ s/\/save//;
         binmode(STDOUT, ":utf8");
+        print "Content-Type: text/html; charset=UTF-8\n\n";
 	print qq{
 	<script>
 	location.href="$me";
 	</script>
 	};
-	
+	exit(0);
 }
 
 #_________________
