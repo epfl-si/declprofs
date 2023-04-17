@@ -32,12 +32,19 @@ use PDF::API2;
 use Date::Calc;
 use Encode qw(encode);
 
-use vars qw($pi $qs $us $me $tequila $key $sciper $roots $msg $lang $ldap $classid
+our $basedir 	 	= '/var/www/vhosts/declprofs.epfl.ch';
+
+
+#	- get access params
+use vars qw($roots $exclude_scipers $add_scipers $aeskey);
+require $basedir.'/private/etc/access_params-declprofs';  # Populates the variables above
+
+use vars qw($pi $qs $us $me $tequila $key $sciper $msg $lang $ldap $classid
 			$DEBUG $tmpldir $dbh $CurrentUser $query $year $yeartodo $REGEX_SCIPER $login_as 
 			@yearsLoop $Persons $AUTHSTRENGTH $authtoken $MAX_SESS_DURATION $AP_email $URL
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate $dbaccrh 
-			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $aeskey $PROC $MAX_DELAY $Roles
-			$SESSDIR $test_email $exclude_scipers $add_scipers $Accreds $profsAccreds $allRemarks
+			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $PROC $MAX_DELAY $Roles
+			$SESSDIR $test_email $Accreds $profsAccreds $allRemarks
 			$ROLE_RESPIT $ROLE_ADMINIT $PREPROD $MINPROFACCRED $BLOCKVPN $TESTMAIL $FORCEPREVYEAR
 	);
 
@@ -51,11 +58,6 @@ use constant small_lead => 10/mm;
 $classid			= 5; 	
 $ROLE_RESPIT	= 19;
 $ROLE_ADMINIT	= 20;
-
-my $basedir 	 	= '/var/www/vhosts/declprofs.epfl.ch';
-
-#	- get access params
-require $basedir.'/private/etc/access_params-declprofs';	
 
 $DEBUG 					= -f '/opt/declprofs/etc/MASTER' ? 0 : 1;
 $PREPROD				= 0;
