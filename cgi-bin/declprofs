@@ -40,7 +40,7 @@ use vars qw($roots $exclude_scipers $add_scipers $aeskey $FORCEPREVYEAR);
 require $basedir.'/private/etc/access_params-declprofs';  # Populates the variables above
 
 use vars qw($pi $qs $us $me $tequila $key $sciper $msg $lang $ldap $classid
-			$DEBUG $tmpldir $dbh $CurrentUser $query $year $yeartodo $REGEX_SCIPER $login_as 
+			$DEBUG $tmpldir $dbh $query $year $yeartodo $REGEX_SCIPER $login_as
 			@yearsLoop $Persons $AUTHSTRENGTH $authtoken $MAX_SESS_DURATION $AP_email $URL
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate $dbaccrh 
 			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $PROC $MAX_DELAY $Roles
@@ -182,7 +182,7 @@ $yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
 $profsAccreds	= getProfsAccreds($yeartodo);
 $allRemarks		= getAllRemarks();
 
-authenticate () ;
+our $CurrentUser = authenticate () ;
   
 @yearsLoop = getAllYears () if $CurrentUser->{isroot};
 
@@ -258,6 +258,7 @@ sub main {
 
 #_________________
 sub authenticate {
+  my $CurrentUser;
 
   unless ($tequila) {
     $tequila = new Tequila::Client (
@@ -313,6 +314,7 @@ warn "authenticate : $CurrentUser->{sciper}, $CurrentUser->{firstname}, $Current
 
   error ("$err_msgs->{noaccess}") unless $CurrentUser->{isprof} || $CurrentUser->{isroot};
 
+  return $CurrentUser;
 }
 
 #_________________
