@@ -221,6 +221,54 @@ sub by_sciper {
 	  }, $class;
 }
 
+sub by_scipers {
+  my ($class, @scipers) = @_;
+  my $persData = $main::Persons->getManyPersonsInfos(@scipers);
+  map {
+    bless {
+      sciper => $_,
+      %{$persData->{$_}}
+    },
+  } (keys %$persData);
+}
+
+our %_reminders_by_year;
+
+sub _get_reminders {
+  my ($self, $yeartodo) = @_;
+  return unless $yeartodo;
+
+  if (my $cached = $_reminders_by_year{$yeartodo}) { return $cached; }
+
+  my $sql = qq{select * from reminders where year=?};
+  my $sth = $main::dbh->prepare ($sql);
+  main::error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
+  my  $rv = $sth->execute (($yeartodo));
+  main::error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
+	my $reminders = {};
+  while (my $entry = $sth->fetchrow_hashref) {
+    $reminders->{$entry->{persid}} = $entry;
+  }
+  return $_reminders_by_year{$yeartodo} = $reminders;
+}
+
+sub get_reminder {
+  my ($self, $yeartodo) = @_;
+  return $self->_get_reminders($yeartodo)->{$self->{sciper}};
+}
+
+sub get_reminder_next_delay {
+  my ($self, $yeartodo) = @_;
+  my $reminder = $self->get_reminder($yeartodo);
+  return $reminder && $reminder->{nxtdelay};
+}
+
+sub get_reminder_date {
+  my ($self, $yeartodo) = @_;
+  my $reminder = $self->get_reminder($yeartodo);
+  return $reminder && $reminder->{reminddate};
+}
+
 sub is_prof {
   my $sciper = shift->{sciper};
   Profs->all->is_prof($sciper) || grep { $_ eq $sciper } (split m/,/, $main::add_scipers);
@@ -247,6 +295,10 @@ sub by_year {
     $_instances{$yeartodo} = bless { year => $yeartodo, accreds => $accreds }, $class;
   }
   return $_instances{$yeartodo};
+}
+
+sub as_users {
+  User->by_scipers(keys %{shift->{accreds}})
 }
 
 sub is_prof {
@@ -382,14 +434,19 @@ $year 				= $yr + 1900;
 $currentdate 	= sprintf "%04d-%02d-%02d", $year, $mon, $mday;
 $MAX_DELAY		= 14;		#	- next decl delay, days
 
-$LASTDATE			= $year.'-04-10';
-$LASTDATE			= $currentdate if $FORCEPREVYEAR;	#	- keep PREVYEAR open
+our $CurrentUser = User->authenticate($login_as);
+if ($FORCEPREVYEAR) {
+  $LASTDATE			= $currentdate;
+} elsif ((! $CurrentUser->is_root()) &&
+         (my $next_delay = $CurrentUser->get_reminder_next_delay($year - 1))) {
+  $LASTDATE = $next_delay;
+} else {
+  $LASTDATE			= $year.'-04-10';
+}
 
 $yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
 
 $allRemarks		= getAllRemarks();
-
-our $CurrentUser = User->authenticate($login_as);
 
 @yearsLoop = getAllYears () if $CurrentUser->is_root;
 
@@ -402,12 +459,6 @@ my @pdf_textes = (
  qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3). All activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, shall be listed.|,
  qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
      );
-
-	my $reminders	= getReminders ($yeartodo) ;
-  
-  unless ($CurrentUser->is_root) {
-  	$LASTDATE = $reminders->{$CurrentUser->{sciper}}->{nxtdelay} if $reminders->{$CurrentUser->{sciper}}->{nxtdelay} && !$FORCEPREVYEAR;
-  }
 
   if 	  ($PROC eq 'save') {
   	save   ();
@@ -569,15 +620,13 @@ sub missing {
   my $submittedActs = getSubmitted($yeartodo);
   my $profs = Profs->by_year($yeartodo);
   my $units 				= $profs->hierarchy($sciper);
-  my $persData 			= $Persons->getManyPersonsInfos($profs->scipers);
-  my $reminders			= getReminders ($yeartodo) ;
 
 	my $emails;
   my @profsLoop;
-  foreach my $sciper ( sort { $persData->{$a}->{name}.$persData->{$a}->{firstname} cmp $persData->{$b}->{name}.$persData->{$b}->{firstname} } $profs->scipers ) 
+  foreach my $person ( sort { $a->{name}.$a->{firstname} cmp $b->{name}.$b->{firstname} } $profs->as_users )
   {
-		next if $submittedActs->{$sciper};
-  	my $person 		= $persData->{$sciper};
+	my $sciper = $person->{sciper};
+	next if $submittedActs->{$sciper};
 
   	my $hasremarks = $allRemarks->{$yeartodo}->{$sciper}->{remark} || $allRemarks->{$yeartodo}->{$sciper}->{prof_remark};
   	push @profsLoop, {
@@ -586,8 +635,8 @@ sub missing {
   		lastname 	=> $person->{name},
   		firstname => $person->{firstname},
   		email			=> $person->{email},
-  		reminddate=> $reminders->{$person->{sciper}}->{reminddate},
-  		nxtdelay	=> $reminders->{$person->{sciper}}->{nxtdelay},
+  		reminddate=> $person->get_reminder_date($yeartodo),
+  		nxtdelay	=> $person->get_reminder_next_delay($yeartodo),
   		unit			=> $units,
 			hasremarks=> $hasremarks, 
 			remarks		=> $allRemarks->{$yeartodo}->{$sciper}->{remark}, 
@@ -1190,23 +1239,6 @@ sub save {
 	</script>
 	};
 	
-}
-
-#_________________
-sub getReminders {
-	my $yeartodo = shift;
-	return unless $yeartodo;
-	
-  my $sql = qq{select * from reminders where year=?};
-  my $sth = $dbh->prepare ($sql);
-  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
-  my  $rv = $sth->execute (($yeartodo));
-  error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
-	my $reminders;
-  while (my $entry = $sth->fetchrow_hashref) {
-    $reminders->{$entry->{persid}} = $entry;
-  }
-  return $reminders;
 }
 
 #_________________
