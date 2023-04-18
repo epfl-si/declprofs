@@ -1792,7 +1792,7 @@ sub makePDF {
 		$page_text = $page->text;
 
 		my $ypos = put_pdf_header ();
-			 $ypos = put_pdf_description ($ypos );		
+			 $ypos = put_pdf_description ($ypos, $yeartodo);
 			 $ypos = put_pdf_identity ($ypos, $yeartodo);
 			 $ypos = put_pdf_table_header ($ypos );		
 
@@ -1977,12 +1977,17 @@ sub put_pdf_identity {
 
 sub put_pdf_description {
 	my $ypos = shift;
+        my @pdf_txts = @pdf_textes;
+	do {
+          s/YEARNEXT/$yeartodo + 1/ge;
+          s/YEARTODO/$yeartodo/g
+        } for @pdf_txts;
 
 	#	- DESCRIPTION
 	$page_text->font( $font{$std_font}{'Roman'}, 9.5/pt );
 	my ( $endw, $ypos, $paragraph ) = text_block(
 			$page_text,
-			$pdf_textes[0],
+			$pdf_txts[0],
 			-x        => $LEFT,
 			-y        => $ypos - 20/pt,
 			-w        => $std_width,
@@ -1993,7 +1998,7 @@ sub put_pdf_description {
 	$page_text->font( $font{$std_font}{'Roman'}, 8/pt );
 	( $endw, $ypos, $paragraph ) = text_block(
 			$page_text,
-			$pdf_textes[1],
+			$pdf_txts[1],
 			-x        => $LEFT,
 			-y        => $ypos - 7/pt,
 			-w        => $std_width,
@@ -2004,7 +2009,7 @@ sub put_pdf_description {
 	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
 	( $endw, $ypos, $paragraph ) = text_block(
 			$page_text,
-			$pdf_textes[2],
+			$pdf_txts[2],
 			-x        => $LEFT,
 			-y        => $ypos - 7/pt,
 			-w        => $std_width,
@@ -2013,10 +2018,9 @@ sub put_pdf_description {
 			-align    => 'justify',
 	);
 	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
-	$pdf_textes[3] =~ s/YEARNEXT/$yeartodo + 1/ge;
 	( $endw, $ypos, $paragraph ) = text_block(
 			$page_text,
-			$pdf_textes[3],
+			$pdf_txts[3],
 			-x        => $LEFT,
 			-y        => $ypos - 7/pt,
 			-w        => $std_width,
@@ -2025,10 +2029,9 @@ sub put_pdf_description {
 			-align    => 'justify',
 	);
 	$page_text->font( $font{$std_font}{'Roman'}, 9.5/pt );
-	$pdf_textes[4] =~ s/YEARTODO/$yeartodo/g;
 	( $endw, $ypos, $paragraph ) = text_block(
 			$page_text,
-			$pdf_textes[4],
+			$pdf_txts[4],
 			-x        => $LEFT,
 			-y        => $ypos - 7/pt,
 			-w        => $std_width,
