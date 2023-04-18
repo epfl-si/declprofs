@@ -20,6 +20,7 @@ use Cadi::Accreds;
 use Tequila::Client;
 use Accred::Roles;
 use Data::Dumper;
+use Carp;
 
 use HTML::Template;
 use Crypt::GCM;
@@ -34,6 +35,17 @@ use Encode qw(encode);
 
 our $basedir 	 	= '/var/www/vhosts/declprofs.epfl.ch';
 
+sub dumpit {
+  my @things = @_;
+
+  map {
+    if (ref($_)) {
+      $_ = Data::Dumper->new([$_])->Indent(0)->Dump;
+    }
+  } @things;
+
+  warn(Carp::longmess(join(" ", @things)));
+}
 
 #	- get access params
 use vars qw($roots $exclude_scipers $add_scipers $aeskey $FORCEPREVYEAR);
@@ -1033,7 +1045,7 @@ warn "--> clone fromyear $fromyear for $CurrentUser->{sciper}, index=$args->{ind
 	my $crt_act			  = $profActByYear->{$yeartodo};
 	my $act_to_clone  = $profActByYear->{$fromyear};
 
-warn "--> clone\n".Dumper($act_to_clone);
+dumpit "--> clone", $act_to_clone;
 
 	if ($args->{index}) {
 		error ('Activity not found') unless defined $act_to_clone->{$args->{index}};
@@ -1799,7 +1811,7 @@ sub makePDF {
 		#	- LOOP ON ITEMS
 		my $submitted;
 		my $prof_act   = getProfAct ($scipertodo, $yeartodo);
-use Data::Dumper; warn "--> makePDF : getProfAct -> " . Dumper($prof_act) . " \n";
+dumpit "--> makePDF : getProfAct -> " => $prof_act;
 		foreach my $index (sort keys %$prof_act) {
 			next unless $prof_act->{$index}->{status} eq '2';
 			$submitted = $prof_act->{$index}->{ts};
