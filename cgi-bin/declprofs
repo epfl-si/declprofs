@@ -802,7 +802,6 @@ sub search {
 
   error ('No access to this function') unless $CurrentUser->is_root;
   my $search_item = $args->{'search_item'};
-     $search_item = $args->{'search_item'} unless $search_item;
   error ('No search key') unless $search_item;
   
   my $users;
