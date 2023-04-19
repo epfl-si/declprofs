@@ -48,7 +48,7 @@ sub dumpit {
 }
 
 #	- get access params
-use vars qw($roots $exclude_scipers $add_scipers $aeskey $FORCEPREVYEAR);
+use vars qw($roots $exclude_scipers $add_scipers $aeskey $test_email $cc_email $FORCEPREVYEAR);
 require $basedir.'/private/etc/access_params-declprofs';  # Populates the variables above
 
 use vars qw($pi $qs $us $me $key $sciper $msg $lang $ldap
@@ -56,8 +56,8 @@ use vars qw($pi $qs $us $me $key $sciper $msg $lang $ldap
 			$Persons $authtoken $MAX_SESS_DURATION $AP_email $URL
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
 			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $PROC $MAX_DELAY $Roles
-			$SESSDIR $test_email $Accreds $allRemarks
-			$ROLE_RESPIT $ROLE_ADMINIT $PREPROD $MINPROFACCRED $BLOCKVPN $TESTMAIL $FORCEPREVYEAR
+			$SESSDIR $Accreds $allRemarks
+			$ROLE_RESPIT $ROLE_ADMINIT $PREPROD $MINPROFACCRED $BLOCKVPN $FORCEPREVYEAR
 	);
 
 use constant mm 				=> 25.4 / 72;
@@ -73,10 +73,7 @@ $ROLE_ADMINIT	= 20;
 $DEBUG 					= -f '/opt/declprofs/etc/MASTER' ? 0 : 1;
 $PREPROD				= 0;
 $tmpldir 				= $PREPROD ? $basedir.'/private/tmpl-preprod/' : $basedir.'/private/tmpl/';
-$test_email			= 'ion.cionca@epfl.ch,vittoria.belmondo@epfl.ch';	
-$test_email			= 'ion.cionca@epfl.ch' ;	
 
-$AP_email				= $DEBUG ? $test_email : 'facultyaffairs@epfl.ch';	
 $lang 					= 'en';
 $me 						= $ENV {SCRIPT_NAME};
 $us							= $ENV {SERVER_NAME};
@@ -87,7 +84,6 @@ $REGEX_SCIPER 	= '^[1-9]\d{5}$';	#
 $MINPROFACCRED	= 30; #	- min prof accred (days)
 
 $BLOCKVPN				= 0;
-$TESTMAIL				= 0;
 
 $AP_URL					= "https://professeurs.epfl.ch/page-26444-en.html";
 $SESSDIR				= $basedir.'/private/sessions/';
@@ -1648,11 +1644,9 @@ sub sendmail {
 
 	my $SENDMAIL_CMD = '/usr/sbin/sendmail';
 
-	my $mailTo  		 = $DEBUG ? $test_email : $dest;
-		 $mailTo			 = $test_email if $TESTMAIL;
+	my $mailTo  		 = $test_email || $dest;
 	my $replyTo 		 = 'noreply@epfl.ch';
 
-warn "--> sendmail : TESTMAIL=$TESTMAIL\n";
 warn "mailTo : $mailTo\n";
 warn "dest : $dest\n";
 
@@ -1662,7 +1656,7 @@ warn "dest : $dest\n";
 		open  (MAIL, "| $SENDMAIL_CMD -t -F$replyTo -f$replyTo") or return;
                 binmode(MAIL, ":utf8");
 		print MAIL qq{To: $mailTo\n};
-		print MAIL qq{Cc: $AP_email \n};
+		print MAIL qq{Cc: $cc_email\n} if $cc_email;
 		print MAIL qq{Reply-to: $replyTo
 Subject: $subj
 Content-type: text/html; charset=utf-8
