@@ -578,7 +578,7 @@ sub getProfActDataLoop {
 			remarks			=> $allRemarks->{$crtyear}->{$scipertodo}->{remark}, 
 			prof_remarks=> $allRemarks->{$crtyear}->{$scipertodo}->{prof_remark}, 
 		};
-		$yeartodo_done = $crtyear eq $yeartodo;
+		$yeartodo_done ||= $crtyear eq $yeartodo;
 	}
 	
 	unless (@years_loop && $yeartodo_done) {
