@@ -53,7 +53,7 @@ require $basedir.'/private/etc/access_params-declprofs';  # Populates the variab
 
 use vars qw($pi $qs $us $me $key $sciper $msg $lang $ldap
 			$DEBUG $tmpldir $dbh $query $year $yeartodo $REGEX_SCIPER $login_as
-			@yearsLoop $Persons $authtoken $MAX_SESS_DURATION $AP_email $URL
+			$Persons $authtoken $MAX_SESS_DURATION $AP_email $URL
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
 			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $PROC $MAX_DELAY $Roles
 			$SESSDIR $test_email $Accreds $allRemarks
@@ -461,8 +461,6 @@ $yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
 
 $allRemarks		= getAllRemarks();
 
-@yearsLoop = getAllYears () if $CurrentUser->is_root;
-
 my $limit_year = $yeartodo eq $year ? $year + 1 : $yeartodo;
 
 my @pdf_textes = (
@@ -509,11 +507,10 @@ sub main {
   } elsif ( $CurrentUser->is_prof ) {
 		my $scipertodo 	= $args->{'scipertodo'} ? $args->{'scipertodo'} : $CurrentUser->{sciper};
 		my $yeartodo   	= $args->{'yeartodo'}   ? $args->{'yeartodo'} : $yeartodo;
-		my @years_loop	= sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($scipertodo);
 		$template 	 		= initTempl('profsact_main.tmpl');
 		$template->param(sNomToDo	 	 => $CurrentUser->{lastname});
 		$template->param(sPrenomToDo => $CurrentUser->{firstname});
-		$template->param(sYearsLoop	 => \@years_loop);
+		$template->param(sYearsLoop	 => [sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($scipertodo)]);
 
   } else {
   	error ("$err_msgs->{noaccess}") ;
@@ -836,12 +833,11 @@ sub search {
   if 	  ( $CurrentUser->is_root ) {
   		if (scalar @outloop == 1 ) {	#	- one result
 				$template 		 = initTempl('profsact_root_main.tmpl');
-				my @years_loop = sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($outloop[0]->{sciper});
 				$template->param(scipertodo	 => $outloop[0]->{sciper});
 				$template->param(sOutLoop	 	 => \@outloop);
 				$template->param(sNomToDo	 	 => $outloop[0]->{lastname});
 				$template->param(sPrenomToDo => $outloop[0]->{firstname});
-				$template->param(sYearsLoop	 => \@years_loop);
+				$template->param(sYearsLoop	 => [sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($outloop[0]->{sciper})]);
   		} else {
 				$template 		 = initTempl('profsact_root_list.tmpl');
 				$template->param(sSearch	 	 => $search_item);
@@ -1021,12 +1017,10 @@ sub clone {
 
 	exit;
 	
-	my @years_loop = getProfActDataLoop ($UserTodo->{sciper});
-
 	my $template 	= initTempl('profsact_main.tmpl');
 	$template->param(sNomToDo	 	 => $UserTodo->{lastname});
 	$template->param(sPrenomToDo => $UserTodo->{firstname});
-	$template->param(sYearsLoop	 => \@years_loop);
+	$template->param(sYearsLoop	 => [getProfActDataLoop ($UserTodo->{sciper})]);
 
         binmode(STDOUT, ":utf8");
 	print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
@@ -1080,12 +1074,10 @@ dumpit "--> clone", $act_to_clone;
 		putProfAct ($yeartodo, $act_to_clone);
 	}
 
-	my @years_loop = getProfActDataLoop ($CurrentUser->{sciper});
-
 	my $template 	= initTempl('profsact_main.tmpl');
 	$template->param(sNomToDo	 	 => $CurrentUser->{lastname});
 	$template->param(sPrenomToDo => $CurrentUser->{firstname});
-	$template->param(sYearsLoop	 => \@years_loop);
+	$template->param(sYearsLoop	 => [getProfActDataLoop ($CurrentUser->{sciper})]);
 
         binmode(STDOUT, ":utf8");
 	print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
@@ -1479,7 +1471,7 @@ sub initTempl {
   $template->param(scipertodo	=> $CurrentUser->{sciper});
   $template->param(sNom 			=> $CurrentUser->{lastname});
   $template->param(sPrenom 		=> $CurrentUser->{firstname});
-  $template->param(yearsLoop 	=> \@yearsLoop);
+  $template->param(yearsLoop 	=> $CurrentUser->is_root ? [getAllYears] : []);
   $template->param(sNxtDelay 	=> $LASTDATE);
 
 #warn "--> initTempl : scipertodo=$CurrentUser->{sciper}\n";
