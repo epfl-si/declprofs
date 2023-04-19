@@ -1000,63 +1000,6 @@ sub clone {
 
 }
 
-sub clone_OLD {
-
-#	error ('No access to this function') unless $CurrentUser->is_prof;
-	my $fromyear = $args->{'fromyear'};
-	error ('Source year undefined') unless $fromyear;
-warn "--> clone fromyear $fromyear for $CurrentUser->{sciper}, index=$args->{index})\n";
-
-	my $profActByYear = getAllProfAct ($CurrentUser->{sciper});
-	my $crt_act			  = $profActByYear->{$yeartodo};
-	my $act_to_clone  = $profActByYear->{$fromyear};
-
-dumpit "--> clone", $act_to_clone;
-
-	if ($args->{index}) {
-		error ('Activity not found') unless defined $act_to_clone->{$args->{index}};
-		my @crt_activities = sort keys %$crt_act;
-		my $last_order = pop @crt_activities;
-			 $last_order++;
-
-		my $sql = qq{insert into profsacts set
-				 persid = ?,
-					 year = ?,
-				 status = ?,
-						 ts = now(),
-					ordre = ?,
-			 activity = ?,
-			principal = ?,
-				 doneby = ?
-		};
-#		my $doneby = $CurrentUser->{sciper} if $scipertodo ne $CurrentUser->{sciper} ;
-		my $sth 	 = $dbh->prepare ($sql);
-		error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
-		my  $rv 	 = $sth->execute ( 
-			$CurrentUser->{sciper}, 
-			$yeartodo, 
-			$PENDING, 
-			$last_order, 
-			$act_to_clone->{$args->{index}}->{activity}, 
-			$act_to_clone->{$args->{index}}->{principal},
-			$CurrentUser->{sciper} 
-		);
-		error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
-	} else {
-		putProfAct ($yeartodo, $act_to_clone);
-	}
-
-	my $template 	= initTempl('profsact_main.tmpl');
-	$template->param(sNomToDo	 	 => $CurrentUser->{lastname});
-	$template->param(sPrenomToDo => $CurrentUser->{firstname});
-	$template->param(sYearsLoop	 => [getProfActDataLoop ($CurrentUser->{sciper})]);
-
-        binmode(STDOUT, ":utf8");
-	print "Content-Type: text/html; charset=UTF-8\n\n", $template->output;
-	exit;
-
-}
-
 #_________________
 sub extract {
 
