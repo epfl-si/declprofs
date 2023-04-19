@@ -829,36 +829,19 @@ sub search {
   } 
 
   my $template;
-  if 	  ( $CurrentUser->is_root ) {
-  		if (scalar @outloop == 1 ) {	#	- one result
-				$template 		 = initTempl('profsact_root_main.tmpl');
-				$template->param(scipertodo	 => $outloop[0]->{sciper});
-				$template->param(sOutLoop	 	 => \@outloop);
-				$template->param(sNomToDo	 	 => $outloop[0]->{lastname});
-				$template->param(sPrenomToDo => $outloop[0]->{firstname});
-				$template->param(sYearsLoop	 => [sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($outloop[0]->{sciper})]);
-  		} else {
-				$template 		 = initTempl('profsact_root_list.tmpl');
-				$template->param(sSearch	 	 => $search_item);
-				$template->param(sOutLoop	 	 => \@outloop);
-  		}
-  } elsif ( $CurrentUser->is_prof ) {
-		my $scipertodo = $args->{'scipertodo'} ? $args->{'scipertodo'} : $CurrentUser->{sciper};
-		my $yeartodo   = $args->{'yeartodo'} ? $args->{'yeartodo'} : $yeartodo;
-		my $prof_act   = getProfAct ($scipertodo, $yeartodo);
-		my @items;
-		foreach my $index (sort keys %$prof_act) {
-			push @items, { activity => $prof_act->{$index}->{activity}, principal => $prof_act->{$index}->{principal}, index => $index, } ;
-		}
-		push @items, { activity => '', principal => '', index => 1, } unless @items;
-
-		$template = initTempl('profsact_det.tmpl');
-		$template->param(sItemsLoop	=> \@items);
-
+  if (scalar @outloop == 1 ) {	#	- one result
+    $template 		 = initTempl('profsact_root_main.tmpl');
+    $template->param(scipertodo	 => $outloop[0]->{sciper});
+    $template->param(sOutLoop	 	 => \@outloop);
+    $template->param(sNomToDo	 	 => $outloop[0]->{lastname});
+    $template->param(sPrenomToDo => $outloop[0]->{firstname});
+    $template->param(sYearsLoop	 => [sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($outloop[0]->{sciper})]);
   } else {
-  	error ("$err_msgs->{noaccess}") ;
+    $template 		 = initTempl('profsact_root_list.tmpl');
+    $template->param(sSearch	 	 => $search_item);
+    $template->param(sOutLoop	 	 => \@outloop);
   }
-  
+
   $template->param(sPathMe => $me);
   $template->param(sMsg 	 => $msg);
   
