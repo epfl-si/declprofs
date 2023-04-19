@@ -526,14 +526,14 @@ sub main {
 
 #_________________
 sub getProfActDataLoop {
-	my ($scipertodo, $clone_fromyear) = @_;
+	my ($scipertodo) = @_;
 	return unless $scipertodo;
 	
 	my $yeartodo 			= $args->{yeartodo} ? $args->{yeartodo} : $yeartodo;
 	my $profActByYear = getAllProfAct ($scipertodo);
 #	my $modcrtyr 			= $currentdate le $LASTDATE && ($year-1) eq $yeartodo ? '1' : '' ;
 
-	my @years_loop; my $yeartodo_done; my @cloned_fromyear;
+	my @years_loop; my $yeartodo_done;
 	foreach my $crtyear ( sort keys %$profActByYear) {
 		next if $args->{yeartodo} and $args->{yeartodo} ne $crtyear;
 		my $prof_act = $profActByYear->{$crtyear};
@@ -560,12 +560,6 @@ sub getProfActDataLoop {
 			} ;
 			$submitted  = $prof_act->{$index}->{ts} if $prof_act->{$index}->{status} eq '2';
 			$donebyroot = 1 if $prof_act->{$index}->{doneby} && $prof_act->{$index}->{doneby} ne $scipertodo;
-		}
-		if ( $crtyear eq $clone_fromyear ) {
-			@cloned_fromyear = @year_act;
-		}
-		if ( $crtyear eq $yeartodo && $clone_fromyear ) {
-			@year_act = @cloned_fromyear;
 		}
 
 		my $crt_remarks = $CurrentUser->is_root ? $allRemarks->{$crtyear}->{$scipertodo}->{remark} : $allRemarks->{$crtyear}->{$scipertodo}->{prof_remark};
@@ -595,19 +589,15 @@ sub getProfActDataLoop {
 			$modcrtyr 	= 1 if $year eq $yeartodo;
 		}
 		my $crt_remarks = $CurrentUser->is_root ? $allRemarks->{$yeartodo}->{$scipertodo}->{remark} : $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark};
-		my @year_act = $clone_fromyear
-								 ? @cloned_fromyear 
-								 : ( { 
-											modYear  	=> $modcrtyr,
-								 			isCrtYear => $yeartodo eq $year, activity => '',
-								 			principal => '', index => 1, 
-								 			}
-								 		);
 		push @years_loop, { 
 			year 	  		=> $yeartodo,
 			scipertodo	=> $scipertodo,
 			modYear   	=> $modcrtyr,
-			yearAct	  	=> \@year_act,
+			yearAct	  	=> [{ 
+                          modYear  	=> $modcrtyr,
+                          isCrtYear => $yeartodo eq $year, activity => '',
+                          principal => '', index => 1, 
+                        }],
 			isCrtYear 	=> $yeartodo eq $year,
 			sPathMe   	=> $me, 
 			isroot 	  	=> $CurrentUser->is_root, 
