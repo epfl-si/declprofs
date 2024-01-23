@@ -450,7 +450,7 @@ if ($FORCEPREVYEAR) {
          (my $next_delay = $CurrentUser->get_reminder_next_delay($year - 1))) {
   $LASTDATE = $next_delay;
 } else {
-  $LASTDATE			= $year.'-04-10';
+  $LASTDATE			= $year.'-07-31';
 }
 
 $yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
