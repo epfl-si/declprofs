@@ -1346,7 +1346,7 @@ sub putProfAct {
 			<br>
 			Thank you and best regards,<br>
 			<br>
-			EPFL Faculty Affairs
+			EPFL Faculty Affairs Team
 			};
 			sendmail ( $CurrentUser->{email}, $subj, $msg );
 			write_logs ($scipertodo, "$yeartodo act submitted ($items items)");
