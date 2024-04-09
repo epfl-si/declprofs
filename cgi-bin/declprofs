@@ -51,7 +51,7 @@ sub dumpit {
 use vars qw($roots $exclude_scipers $add_scipers $aeskey $test_email $cc_email $FORCEPREVYEAR);
 require $basedir.'/private/etc/access_params-declprofs';  # Populates the variables above
 
-use vars qw($pi $qs $us $me $key $sciper $msg $lang $ldap
+use vars qw($pi $qs $us $me $key $msg $lang $ldap
 			$DEBUG $tmpldir $dbh $query $year $yeartodo $REGEX_SCIPER $login_as
 			$Persons $authtoken $MAX_SESS_DURATION $AP_email $URL
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
@@ -615,7 +615,6 @@ sub missing {
 #warn ">> missing : yeartodo=$yeartodo\n";
   my $submittedActs = getSubmitted($yeartodo);
   my $profs = Profs->by_year($yeartodo);
-  my $units 				= $profs->hierarchy($sciper);
 
 	my $emails;
   my @profsLoop;
@@ -623,6 +622,7 @@ sub missing {
   {
 	my $sciper = $person->{sciper};
 	next if $submittedActs->{$sciper};
+        my $units 				= $profs->hierarchy($sciper);
 
   	my $hasremarks = $allRemarks->{$yeartodo}->{$sciper}->{remark} || $allRemarks->{$yeartodo}->{$sciper}->{prof_remark};
   	push @profsLoop, {
@@ -1009,7 +1009,6 @@ sub extract {
 	if ($yeartodo) {
 		error ('Source year undefined') unless $yeartodo;
 		my $submittedActs = getSubmitted($yeartodo);
-		my $units 				= Profs->by_year($yeartodo)->hierarchy($sciper);
 
 		my $profs = Profs->by_year($yeartodo);
 		my $dataSource;
@@ -1042,6 +1041,7 @@ sub extract {
 						: qq{year\tsciper\tname\tfirstname\tunit\torder\tactivity\tprincipal\n};
 
 		foreach my $sciper ( sort { $persData->{$a}->{name}.$persData->{$a}->{firstname} cmp $persData->{$b}->{name}.$persData->{$b}->{firstname} } keys %$dataSource ) {
+			my $units 				= Profs->by_year($yeartodo)->hierarchy($sciper);
 
 			if ( $args->{'what'} eq 'missing' ) {
 				next if $submittedActs->{$sciper};
