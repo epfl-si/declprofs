@@ -1006,12 +1006,13 @@ sub extract {
 	my $output = qq{year\tsciper\torder\tactivity\tprincipal\n};
 	my $file_name;
 	my $output;
+	my $dataSource;
+
 	if ($yeartodo) {
 		error ('Source year undefined') unless $yeartodo;
 		my $submittedActs = getSubmitted($yeartodo);
 
 		my $profs = Profs->by_year($yeartodo);
-		my $dataSource;
 		my @scipers;
 		my $allroles;
 		if ( $args->{'what'} eq 'missing' ) {
@@ -1027,7 +1028,7 @@ sub extract {
 			@scipers					 = ( keys %$dataSource, @resps_scipers, @admins_scipers );
 
 		} else {
-			my $dataSource = $submittedActs;
+			$dataSource = $submittedActs;
 			$file_name  = qq{prof_decl_${yeartodo}.csv};
 			@scipers		= keys %$dataSource;
 		}
