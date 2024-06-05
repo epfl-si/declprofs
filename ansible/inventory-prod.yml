@@ -1,0 +1,4 @@
+all:
+  hosts:
+    exopgesrv97:
+      inventory_environment: prod
