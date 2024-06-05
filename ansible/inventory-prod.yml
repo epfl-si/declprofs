@@ -2,3 +2,4 @@ all:
   hosts:
     exopgesrv97:
       inventory_environment: prod
+      # See vars.yml for variables that start with ansible_

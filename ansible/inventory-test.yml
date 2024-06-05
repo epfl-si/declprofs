@@ -2,3 +2,4 @@ all:
   hosts:
     exopgesrv92:
       inventory_environment: test
+      # See vars.yml for variables that start with ansible_
