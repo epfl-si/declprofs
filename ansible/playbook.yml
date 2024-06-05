@@ -1,0 +1,3 @@
+- name: "Nothing to see here, move along"
+  hosts: localhost
+  gather_facts: no
