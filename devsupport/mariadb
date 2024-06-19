@@ -1,0 +1,80 @@
+#!/bin/bash
+
+set -e
+
+usage () {
+     die <<HELP
+
+Usage:
+   $0 wait
+   $0 restore <dbname>
+
+HELP
+}
+
+. "$(dirname "$0")"/functions.sh
+
+await_mariadb_ready () {
+     for retry in $(seq 1 30); do
+         if dockermariadb mysql -u root -h db -e "'select 1'" >/dev/null; then
+             return 0
+         else
+             sleep 1
+         fi
+     done
+     die "Timed out waiting for MariaDB to be ready"
+}
+
+dump_database_over_ssh () {
+     local ssh="$1"; shift
+     local dbname="$1"; shift
+     local user="$1"; shift
+
+     ssh "$ssh" \
+         mysqldump -B -h test-cadidb.epfl.ch -P 3306 \
+         --skip-lock-tables \
+         -u "$user" \
+         --password='$( perl -ne '"'m|$dbname\s.*$user\s+(.*)|"' && print $1;'"'"' /opt/declprofs/etc/dbs.conf)' \
+         "$@" \
+         "$dbname"
+}
+
+dump_table_over_ssh () {
+     local ssh="$1"; shift
+     local dbname="$1"; shift
+     local user="$1"; shift
+     local tablename="$1"; shift
+
+     ssh "$ssh" \
+         mysqldump -h test-cadidb.epfl.ch -P 3306 \
+         --skip-lock-tables \
+         -u "$user" \
+         --password='$( perl -ne '"'m|$dbname\s.*$user\s+(.*)|"' && print $1;'"'"' /opt/declprofs/etc/dbs.conf)' \
+         "$dbname" \
+         "$tablename" \
+         "$@"
+}
+
+case "$1" in
+  "") usage ;;
+  help|--help) usage ;;
+  wait) await_mariadb_ready ;;
+  restoredb)
+      [ -n "$2" ] || usage
+      dbname="$2"; shift; shift
+      await_mariadb_ready
+      (
+          echo "DROP DATABASE IF EXISTS $dbname;"
+          dump_database_over_ssh kis@exopgesrv97 "$dbname" declprofs_u "$@"
+      ) | dockermariadb mysql --progress-reports ;;
+  restoretable)
+      [ -n "$2" ] || usage
+      [ -n "$3" ] || usage
+      dbname="$2"; tablename="$3"; shift; shift ; shift
+      await_mariadb_ready
+      (
+          echo "USE $dbname;"
+          echo "DROP TABLE IF EXISTS $tablename;"
+          dump_table_over_ssh kis@exopgesrv97 "$dbname" declprofs_u "$tablename" "$@"
+      ) | dockermariadb mysql --progress-reports ;;
+esac
