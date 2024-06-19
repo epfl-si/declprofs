@@ -19,23 +19,31 @@
 						<input type="hidden" name="year" value="<TMPL_VAR NAME=year>">
 
 						<div class="row">
-							<div class="col-md-3 ">&nbsp;</div>
-							<div class="col-md-5 box_title" style="padding-left: 0;">Type and area of activity (including dual professorships)</div>
-							<div class="col-md-4 box_title" style="padding-left: 0;">Name and address of principal (or institution)</div>
+							<div class="col-md-2 ">&nbsp;</div>
+							<div class="col-md-3 box_title" style="padding-left: 0;">Type and area of activity (including dual professorships)</div>
+							<div class="col-md-3 box_title" style="padding-left: 0;">Name and address of principal (or institution)</div>
+							<div class="col-md-2 box_title" style="padding-left: 0;">🆕 Start date</div>
+							<div class="col-md-2 box_title" style="padding-left: 0;">🆕 End date</div>
 						</div>
 
 						<div class="row scrollable" id="items">
 							 <TMPL_LOOP NAME=yearAct>
 								<div class="row underlined"  id="<TMPL_VAR NAME=year>item_<TMPL_VAR NAME=index>">
-									<div class="col-md-3" style="text-align: right;">
+									<div class="col-md-2" style="text-align: right;">
 										<span class="btn btn-xs btn-info"  onclick="insertItem('<TMPL_VAR NAME=year>','<TMPL_VAR NAME=index>');"><span class="glyphicon glyphicon-plus"></span></span>
 										<span class="btn btn-xs btn-warning" onclick="if (confirm('delete this entry')) delItem('<TMPL_VAR NAME=year>','<TMPL_VAR NAME=index>');"><span class="glyphicon glyphicon-trash"></span></span>
 									</div>
-									<div class="col-md-5">
+									<div class="col-md-3">
 										<textarea name="<TMPL_VAR NAME=year>activity_<TMPL_VAR NAME=index>"  class="no_borders" id="<TMPL_VAR NAME=year>activity_<TMPL_VAR NAME=index>"><TMPL_VAR NAME=activity></textarea>
 									</div>
-									<div class="col-md-4">
+									<div class="col-md-3">
 										<textarea name="<TMPL_VAR NAME=year>principal_<TMPL_VAR NAME=index>"  class="no_borders" id="<TMPL_VAR NAME=year>principal_<TMPL_VAR NAME=index>"><TMPL_VAR NAME=principal></textarea>
+									</div>
+									<div class="col-md-2">
+										<input type="date" name="<TMPL_VAR NAME=year>dateFrom_<TMPL_VAR NAME=index>"  class="no_borders" id="<TMPL_VAR NAME=year>dateFrom_<TMPL_VAR NAME=index>" value="<TMPL_VAR NAME=dateFrom>" min="<TMPL_VAR NAME=year>-01-01" max="<TMPL_VAR NAME=year>-12-31" required>
+									</div>
+									<div class="col-md-2">
+										<input type="date" name="<TMPL_VAR NAME=year>dateTo_<TMPL_VAR NAME=index>"  class="no_borders" id="<TMPL_VAR NAME=year>dateTo_<TMPL_VAR NAME=index>" value="<TMPL_VAR NAME=dateTo>" min="<TMPL_VAR NAME=year>-01-01" max="<TMPL_VAR NAME=year>-12-31" required>
 									</div>
 								</div>
 							 </TMPL_LOOP>

@@ -79,13 +79,15 @@
 				<TMPL_IF NAME=yearAct>
 					<TMPL_LOOP NAME=yearAct>
 						<div class="row underlined" style="min-height: 30px;">
-							<div class="col-md-7">
+							<div class="profsact-det-activity col-md-3">
 								<TMPL_UNLESS NAME=modYear>
 										<span class="btn btn-xs btn-info" title="Clone this activity to current year"><span class="glyphicon glyphicon-transfer" onclick="if (confirm('Clone this activity to current year? ')) { location.href='<TMPL_VAR NAME=sPathMe>/clone?fromyear=<TMPL_VAR NAME=year>&index=<TMPL_VAR NAME=index>&scipertodo=<TMPL_VAR NAME=scipertodo>'; }" ></span></span>
 								</TMPL_UNLESS>
 								<TMPL_VAR NAME=activity>
 							</div>
-							<div class="col-md-5" style="padding-left:0;"><TMPL_VAR NAME=principal></div>
+							<div class="col-md-3"><TMPL_VAR NAME=principal></div>
+							<div class="col-md-3"><TMPL_VAR NAME=dateFrom></div>
+							<div class="col-md-3" style="padding-left:0;"><TMPL_VAR NAME=dateTo></div>
 						</div>
 					</TMPL_LOOP>
 				</TMPL_IF>

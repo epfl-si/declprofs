@@ -28,15 +28,21 @@ function insertItem(year, index) {
 	var node = document.createElement("div");
 	var new_index = index.toString() + '1';
 	var itemHTML = '<div class="row underlined"  id="'+year+'item_'+new_index+'">' +
-				'<div class="col-md-3" style="text-align: right;">' +
+				'<div class="col-md-2" style="text-align: right;">' +
 				'	<span class="btn btn-xs btn-info"  onclick="insertItem(\''+year+'\', \''+new_index+'\');"><span class="glyphicon glyphicon-plus"></span></span>' +
 				'	<span class="btn btn-xs btn-warning" onclick="if (confirm(\'delete this entry\')) delItem(\''+year+'\', \''+new_index+'\');"><span class="glyphicon glyphicon-trash"></span></span>' +
 				'</div>' +
-				'<div class="col-md-5">' +
+				'<div class="col-md-3">' +
 				'	<textarea name="'+year+'activity_'+new_index+'"  class="no_borders" id="activity_'+new_index+'"></textarea>' +
 				'</div>' +
-				'<div class="col-md-4">' +
+				'<div class="col-md-3">' +
 				'	<textarea name="'+year+'principal_'+new_index+'"  class="no_borders" id="principal_'+new_index+'"></textarea>' +
+				'</div>' +
+				'<div class="col-md-2">' +
+				'	<input type="date" name="'+year+'dateFrom_'+new_index+'"  class="no_borders" id="dateFrom_'+new_index+'" min="'+year+'-01-01" max="'+year+'-12-31"  required>' +
+				'</div>' +
+				'<div class="col-md-2">' +
+				'	<input type="date" name="'+year+'dateTo_'+new_index+'"  class="no_borders" id="dateTo_'+new_index+'" min="'+year+'-01-01" max="'+year+'-12-31" required>' +
 				'</div>' +
 				'</div>';
 	node.innerHTML = itemHTML;

@@ -536,7 +536,9 @@ sub getProfActDataLoop {
 				scipertodo=> $scipertodo,
 				crt_year 	=> $year, 
 				activity 	=> $prof_act->{$index}->{activity}, 
-				principal => $prof_act->{$index}->{principal}, 
+                                dateFrom        => $prof_act->{$index}->{dateFrom},
+                                dateTo          => $prof_act->{$index}->{dateTo},
+				principal       => $prof_act->{$index}->{principal},
 				modYear 	=> $modcrtyr,
 				isCrtYear => $crtyear eq $year,
 				sPathMe 	=> $me, 
@@ -886,8 +888,10 @@ sub history {
 		<div class="row">
 		<div class="col-md-2 box_title grey">Created</div>
 		<div class="col-md-1 box_title grey">Order</div>
-		<div class="col-md-4 box_title grey">Activity</div>
-		<div class="col-md-4 box_title grey">Principal</div>
+		<div class="col-md-2 box_title grey">Activity</div>
+		<div class="col-md-2 box_title grey">Principal</div>
+		<div class="col-md-2 box_title grey">Start</div>
+		<div class="col-md-2 box_title grey">End</div>
 		<div class="col-md-1 box_title grey">Status</div>
 		</div>
 	};
@@ -901,8 +905,10 @@ sub history {
 		<div class="row underlined">
 		<div class="col-md-2">$item->{ts}</div>
 		<div class="col-md-1">$item->{ordre}</div>
-		<div class="col-md-4">$item->{activity}</div>
-		<div class="col-md-4">$item->{principal}</div>
+		<div class="col-md-2">$item->{activity}</div>
+		<div class="col-md-2">$item->{principal}</div>
+		<div class="col-md-2">$item->{dateFrom}</div>
+		<div class="col-md-2">$item->{dateTo}</div>
 		<div class="col-md-1">$status</div>
 		</div>
 		};
@@ -941,6 +947,8 @@ sub clone {
 					ordre = ?,
 			 activity = ?,
 			principal = ?,
+                        dateFrom = ?,
+                        dateTo = ?,
 				 doneby = ?
 		};
 #		my $doneby = $UserTodo->{sciper} if $scipertodo ne $UserTodo->{sciper} ;
@@ -953,6 +961,8 @@ sub clone {
 			$last_order, 
 			$act_to_clone->{$args->{index}}->{activity}, 
 			$act_to_clone->{$args->{index}}->{principal},
+			$act_to_clone->{$args->{index}}->{dateFrom},
+			$act_to_clone->{$args->{index}}->{dateTo},
 			$UserTodo->{sciper} 
 		);
 		error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
@@ -991,7 +1001,7 @@ sub extract {
 	my $yeartodo 		= $args->{'yeartodo'};
 	my $scipertodo 	= $args->{'scipertodo'};
 
-	my $output = qq{year\tsciper\torder\tactivity\tprincipal\n};
+	my $output = qq{year\tsciper\torder\tactivity\tprincipal\tfrom\tto\n};
 	my $file_name;
 	my $output;
 	my $dataSource;
@@ -1027,7 +1037,7 @@ sub extract {
 
 		$output = $args->{'what'} eq 'missing' 
 						? qq{year\tsciper\tname\tfirstname\tunit\trespIT\tadminIT\n} 
-						: qq{year\tsciper\tname\tfirstname\tunit\torder\tactivity\tprincipal\n};
+						: qq{year\tsciper\tname\tfirstname\tunit\torder\tactivity\tprincipal\tfrom\tto\n};
 
 		foreach my $sciper ( sort { $persData->{$a}->{name}.$persData->{$a}->{firstname} cmp $persData->{$b}->{name}.$persData->{$b}->{firstname} } keys %$dataSource ) {
 			my $units 				= Profs->by_year($yeartodo)->hierarchy($sciper);
@@ -1057,7 +1067,7 @@ sub extract {
 #					$row->{activity}  = encode('UTF-8', $row->{activity});
 #					$row->{principal} = encode('UTF-8', $row->{principal});
 
-					$output .= qq{$yeartodo\t$sciper\t$persData->{$sciper}->{name}\t$persData->{$sciper}->{firstname}\t$units\t$row->{ordre}\t$row->{activity}\t$row->{principal}\n};
+					$output .= qq{$yeartodo\t$sciper\t$persData->{$sciper}->{name}\t$persData->{$sciper}->{firstname}\t$units\t$row->{ordre}\t$row->{activity}\t$row->{principal}\t$row->{dateFrom}\t$row->{dateTo}\n};
 				}
 			}
 		}
@@ -1066,7 +1076,7 @@ sub extract {
 		error ('Professor sciper not defined') unless $scipertodo;
 		my $submittedActs = getAllProfAct($scipertodo);
 
-	  $output = qq{year\tsciper\torder\tactivity\tprincipal\n};
+	  $output = qq{year\tsciper\torder\tactivity\tprincipal\tfrom\tto\n};
 	
 		foreach my $year ( sort keys %$submittedActs ) {
 			foreach my $index ( sort keys %{$submittedActs->{$year}} ) {
@@ -1082,7 +1092,7 @@ sub extract {
 #				$submittedActs->{$year}->{$index}->{activity}  = encode('UTF-8', $submittedActs->{$year}->{$index}->{activity});
 #				$submittedActs->{$year}->{$index}->{principal} = encode('UTF-8', $submittedActs->{$year}->{$index}->{principal});
 
-				$output .= qq{$year\t$scipertodo\t$index\t$submittedActs->{$year}->{$index}->{activity}\t$submittedActs->{$year}->{$index}->{principal}\n};
+				$output .= qq{$year\t$scipertodo\t$index\t$submittedActs->{$year}->{$index}->{activity}\t$submittedActs->{$year}->{$index}->{principal}\t$submittedActs->{$year}->{$index}->{dateFrom}\t$submittedActs->{$year}->{$index}->{dateTo}\n};
 			}
 		}
 		$file_name = qq{prof_decl_${yeartodo}_${scipertodo}.csv};
@@ -1117,6 +1127,8 @@ sub save {
 			next unless $items->{$index}->{activity} ;
 			$data->{$ordre}->{activity}  = $items->{$index}->{activity};
 			$data->{$ordre}->{principal} = $items->{$index}->{principal};
+			$data->{$ordre}->{dateFrom} = $items->{$index}->{dateFrom};
+			$data->{$ordre}->{dateTo} = $items->{$index}->{dateTo};
 			$ordre++;
 		}
 		
@@ -1215,6 +1227,8 @@ sub getAllProfAct {
     my $order = $entry->{ordre};
     $rows->{$entry->{year}}->{$order}->{activity}  = $entry->{activity};
     $rows->{$entry->{year}}->{$order}->{principal} = $entry->{principal};
+    $rows->{$entry->{year}}->{$order}->{dateFrom}  = $entry->{dateFrom};
+    $rows->{$entry->{year}}->{$order}->{dateTo}    = $entry->{dateTo};
     $rows->{$entry->{year}}->{$order}->{status}    = $entry->{status};
     $rows->{$entry->{year}}->{$order}->{ts}    	   = $entry->{ts};
     $rows->{$entry->{year}}->{$order}->{doneby}    = $entry->{doneby};
@@ -1285,6 +1299,8 @@ sub putProfAct {
         ordre = ?,
      activity = ?,
     principal = ?,
+     dateFrom = ?,
+       dateTo = ?,
        doneby = ?
   };
 	my $doneby = $CurrentUser->{sciper} if $scipertodo ne $CurrentUser->{sciper} ;
@@ -1292,7 +1308,8 @@ sub putProfAct {
   error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $sth;
   my $items  = 0;
   foreach my $row (sort { $a <=> $b } keys %$data) {
-    my  $rv = $sth->execute ( $scipertodo, $yeartodo, $status, $row, $data->{$row}->{activity}, $data->{$row}->{principal}, $doneby );
+    my  $rv = $sth->execute ( $scipertodo, $yeartodo, $status, $row, $data->{$row}->{activity}, $data->{$row}->{principal},
+                              $data->{$row}->{dateFrom}, $data->{$row}->{dateTo}, $doneby );
     error ("Unable to connect to database. Please contact 1234\@epfl.ch\n") unless $rv;
     $items++;
   }
@@ -1691,6 +1708,7 @@ dumpit "--> makePDF : getProfAct -> " => $prof_act;
 					-lead     => $std_lead ,
 					-align    => 'justify',
 			);
+                        # TODO: add dateFrom / dateTo
 
 			$ypos = min($ypos1, $ypos2);
 			$ypos -= 7/mm;
@@ -1758,6 +1776,8 @@ sub put_pdf_table_header {
 			-lead     => $std_lead ,
 			-align    => 'justify',
 		);
+
+        # TODO: add from / to headers
 
 		return $ypos
 
