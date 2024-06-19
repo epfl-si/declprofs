@@ -15,3 +15,5 @@ RUN cpanm --installdeps --notest . || { cat /root/.cpanm/work/*/build.log; exit 
 FROM perl-base
 COPY --from=perl-build /usr/local/share/perl /usr/local/share/perl
 COPY --from=perl-build /usr/local/lib/x86_64-linux-gnu/perl /usr/local/lib/x86_64-linux-gnu/perl
+
+COPY docker/httpd.conf /usr/local/apache2/conf/httpd.conf
