@@ -17,3 +17,4 @@ COPY --from=perl-build /usr/local/share/perl /usr/local/share/perl
 COPY --from=perl-build /usr/local/lib/x86_64-linux-gnu/perl /usr/local/lib/x86_64-linux-gnu/perl
 
 COPY docker/httpd.conf /usr/local/apache2/conf/httpd.conf
+COPY perllib /usr/local/lib/site_perl/
