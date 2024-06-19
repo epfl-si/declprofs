@@ -1,0 +1,83 @@
+#!/usr/bin/perl
+#
+##############################################################################
+#
+# Author:       Ion CIONCA (Ion.Cionca@epfl.ch) - 2018
+#
+#########################################################################
+#####
+#
+#
+
+use strict;
+
+use lib '/opt/declprofs/lib/perl';
+
+use CGI;
+use Net::LDAPS;
+use Mail::Sendmail;
+
+use Cadi::CadiDB;
+use Cadi::WSUtils;
+
+use vars qw($pi $qs $us $me $dbh $dbaccrh );
+
+$me = $ENV {SCRIPT_NAME};
+$us	= $ENV {SERVER_NAME};
+$qs = $ENV {QUERY_STRING};
+$pi = $ENV {PATH_INFO};
+
+$ENV {DBCONFDIR} = '/opt/declprofs/etc';
+
+warn "--> start probe from $ENV{REMOTE_ADDR} : pathinfo=$pi\n";
+
+my $config_items = {
+		accreddb	 => { active => '1', critical => '1', label => 'mysql accred/dinfo db access',},
+		declprofdb => { active => '1', critical => '1', label => 'mysql declprofs db access', },
+};
+
+my $probe ;
+   $probe->{status} = 'ok';
+	
+if ( $pi =~ /usage/ ) {
+	my $return = {  
+		status => 'ok', 
+		usage  => qq{https://$ENV{SERVER_NAME}/probe - returns status : ok | ko | warning
+		
+		},
+	} ;
+	Cadi::WSUtils::json_response ( { probe => $return, } );
+	exit;
+}	
+
+foreach my $key ( keys %$config_items ) {
+	my $item = $config_items->{$key};
+	next unless $item->{active};
+
+	if ( $key eq 'declprofdb' ) {
+		$dbh = new Cadi::CadiDB (
+			dbname => 'CADI_DECLPROF',
+			 trace => 1,
+			 utf8  => 1,
+		) unless $dbh;
+		$probe->{items}->{$key} = $dbh ? 'ok' : 'ko';
+	}
+	if ( $key eq 'accreddb' ) {
+		$dbaccrh = new Cadi::CadiDB (
+			dbname => 'accred',
+			 trace => 1,
+			 utf8  => 1,
+		) unless $dbaccrh;
+		$probe->{items}->{$key} = $dbaccrh ? 'ok' : 'ko';
+	}
+			
+	unless ( $probe->{items}->{$key} eq 'ok' ) {
+		$probe->{status} = $item->{critical} ? 'ko' : 'warning';
+	}
+}
+	
+my $return = $pi =~ /verbose/  ? $probe : {  status => $probe->{status}, } ;
+	 $return = $probe if $probe->{status} ne 'ok';
+Cadi::WSUtils::json_response ( { probe => $return, } );
+
+exit;
