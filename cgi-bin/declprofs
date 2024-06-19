@@ -298,7 +298,7 @@ sub by_year {
   if (! $_instances{$yeartodo}) {
     my $accreds = {};
     my $unitMap = $class->_do_load($yeartodo);
-    foreach my $sciper (keys $unitMap) {
+    foreach my $sciper (keys %$unitMap) {
       $accreds->{$sciper} = $unitMap->{$sciper};
     }
     $_instances{$yeartodo} = bless { year => $yeartodo, accreds => $accreds }, $class;
