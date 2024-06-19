@@ -33,8 +33,6 @@ use PDF::API2;
 use Date::Calc;
 use Encode qw(encode);
 
-our $basedir 	 	= '/var/www/vhosts/declprofs.epfl.ch';
-
 sub dumpit {
   my @things = @_;
 
@@ -48,11 +46,12 @@ sub dumpit {
 }
 
 #	- get access params
-use vars qw($roots $exclude_scipers $add_scipers $aeskey $test_email $cc_email $FORCEPREVYEAR);
-require $basedir.'/private/etc/access_params-declprofs';  # Populates the variables above
+use vars qw($roots $exclude_scipers $add_scipers $aeskey $test_email $cc_email
+            $DEBUG $FORCEPREVYEAR);
+require '/app/etc/access_params';  # Populates the variables above
 
 use vars qw($pi $qs $us $me $key $msg $lang $ldap
-			$DEBUG $tmpldir $dbh $query $year $yeartodo $REGEX_SCIPER $login_as
+			$tmpldir $dbh $query $year $yeartodo $REGEX_SCIPER $login_as
 			$Persons $authtoken $MAX_SESS_DURATION $AP_email $URL
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
 			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $PROC $MAX_DELAY $Roles
@@ -70,9 +69,8 @@ use constant small_lead => 10/mm;
 $ROLE_RESPIT	= 19;
 $ROLE_ADMINIT	= 20;
 
-$DEBUG 					= -f '/opt/declprofs/etc/MASTER' ? 0 : 1;
 $PREPROD				= 0;
-$tmpldir 				= $PREPROD ? $basedir.'/private/tmpl-preprod/' : $basedir.'/private/tmpl/';
+$tmpldir 				= '/app/tmpl/';
 
 $lang 					= 'en';
 $me 						= $ENV {SCRIPT_NAME};
@@ -86,11 +84,11 @@ $MINPROFACCRED	= 30; #	- min prof accred (days)
 $BLOCKVPN				= 0;
 
 $AP_URL					= "https://professeurs.epfl.ch/page-26444-en.html";
-$SESSDIR				= $basedir.'/private/sessions/';
+$SESSDIR				= '/app/sessions/';
 
 #		- PDF CREATOR
-my $pdf_dir			= $basedir.'/private/pdfs/';
-my $epfl_logo	 	= $basedir.'/htdocs/images/epfl_logo.png';
+my $pdf_tmpdir			= '/tmp/';
+my $epfl_logo	 	= '/usr/local/apache2/htdocs/images/epfl_logo.png';
 my $std_lead 	  = 12/pt;
 my $small_lead  = 10/pt;
 my $std_font 	  = 'Verdana';
@@ -135,7 +133,6 @@ foreach my $item ( split /\//, $pi ) {
 
 $ldap   = Net::LDAPS->new('ldap.epfl.ch')    or error ("failed to connect to LDAPS : $!");
 
-$ENV {DBCONFDIR} = '/opt/declprofs/etc';
 $dbh = new Cadi::CadiDB (
   dbname => 'declprofs',
    trace => 1,
@@ -1697,7 +1694,7 @@ sub makePDF {
 		   $scipertodo = $args->{'scipertodo'} if $args->{'scipertodo'} && $CurrentUser->is_root;
 
 		$yeartodo   = $args->{'yeartodo'} ? $args->{'yeartodo'} : $yeartodo;
-		my $pdf_file 	 = $pdf_dir.$scipertodo.'_'.$yeartodo.'.pdf';
+		my $pdf_file 	 = $pdf_tmpdir.$scipertodo.'_'.$yeartodo.'.pdf';
 
 		$pdf 	= PDF::API2->new( -file => $pdf_file ) || error ("Unable to create PDF : $pdf_file");
 		$page = $pdf->page();

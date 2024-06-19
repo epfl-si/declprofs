@@ -17,7 +17,15 @@ services:
     build: .
     image: declprofs
     volumes:
+      # Like production:
+      - ./devsupport/access_params:/app/etc/access_params
+      - ./devsupport/dbs.conf:/usr/local/etc/dbs.conf
+      # Not like production — Mount source code on top of the
+      # `docker build`t code, for faster embugging:
       - ./cgi-bin:/usr/local/apache2/cgi-bin:ro
+      - ./htdocs/extra:/usr/local/apache2/htdocs/extra:ro
+      - ./htdocs/images:/usr/local/apache2/htdocs/images:ro
+      - ./tmpl:/app/tmpl:ro
     links:
       - db:db
     ports:

@@ -1,0 +1,28 @@
+# -*- perl -*-
+# 12-factored Perl variables for local development
+
+$DEBUG = undef;
+
+$roots 			= {
+  243371 => 1,  # Dominique Quatravaux
+};
+
+$cc_email				= 'facultyaffairs@epfl.ch';
+
+
+# Exceptions
+
+$exclude_scipers = '177247,171600,196676,155721,185424';
+
+# Comma-separated list of persons who may use declprofs without being
+# known as a Professor in Accred. Add yourself below.
+$add_scipers = '243371';
+
+$aeskey			= 'a5dc3d9aha59ee216hff03b2fbca21e4';
+
+# Set up “extended deadline”; year won't roll over to the next one as
+# # long as the value is 1. If it is 0, the year rolls over on April 1st.
+$FORCEPREVYEAR = 1;
+
+# Please don't touch the last line.
+1;
