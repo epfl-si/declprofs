@@ -1604,7 +1604,7 @@ $msg
 		close (MAIL);
 	} or do {
 		warn "error in mailto [ $dest ] : $@\n"; 
-		error "error in mailto [ $dest ] : $@\n"; 
+		error("error in mailto [ $dest ] : $@\n");
 	};
 
 }
