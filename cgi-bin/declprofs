@@ -53,7 +53,7 @@ use vars qw($pi $qs $us $me $key $msg $lang $ldap
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
 			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $PROC $MAX_DELAY $Roles
 			$SESSDIR $Accreds $allRemarks
-			$ROLE_RESPIT $ROLE_ADMINIT $PREPROD $MINPROFACCRED $BLOCKVPN $FORCEPREVYEAR
+			$ROLE_RESPIT $ROLE_ADMINIT $PREPROD $MINPROFACCRED $FORCEPREVYEAR
 	);
 
 use constant mm 				=> 25.4 / 72;
@@ -77,8 +77,6 @@ $pi 						= $ENV {PATH_INFO};
 $URL						= 'https://'.$us.$me;
 $REGEX_SCIPER 	= '^[1-9]\d{5}$';	#	
 $MINPROFACCRED	= 30; #	- min prof accred (days)
-
-$BLOCKVPN				= 0;
 
 $AP_URL					= "https://professeurs.epfl.ch/page-26444-en.html";
 $SESSDIR				= '/app/sessions/';
@@ -104,11 +102,6 @@ $err_msgs = {
 	noaccess => qq{This service is for EPFL professors only. <br>Please contact the <a href="$AP_URL">Faculty Affairs</a> for more information},
 	noVPNaccess => qq{This service is available only for EPFL intranet. <br>Please contact the <a href="$AP_URL">Faculty Affairs</a> for more information},
 };
-
-if ($BLOCKVPN) {
-	warn "--> REMOTE_ADDR=$ENV{REMOTE_ADDR}\n";
-	error ($err_msgs->{noVPNaccess}) if $ENV{REMOTE_ADDR} =~ /128\.179\.25[0-5]\./ ;
-}
 
 $CGI::POST_MAX 	= 1024 * 1000; 
 $query 		   		= CGI->new();
