@@ -24,10 +24,6 @@ console.log ('toggleEdit B');
 	}
 }
 
-function saveContent () {
-	return true;
-}
-
 function insertItem(year, index) {
 	var node = document.createElement("div");
 	var new_index = index.toString() + '1';
