@@ -10,14 +10,3 @@
       name: firewalld
       state: stopped
       enabled: false
-
-- name: "Deploy software"
-  hosts: all
-  gather_facts: no
-  vars_files:
-    - vars.yml
-  tasks:
-    - name: "Deploy cgi-bin"
-      copy:
-        src: ../cgi-bin
-        dest: /var/www/vhosts/declprofs.epfl.ch/cgi-bin/
