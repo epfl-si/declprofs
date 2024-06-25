@@ -1,5 +1,10 @@
-all:
+# See vars.yml for variables that start with ansible_
+oldvms:
   hosts:
     exopgesrv97:
       inventory_environment: prod
-      # See vars.yml for variables that start with ansible_
+vms:
+  hosts:
+    # This is the new VM with RedHat 9:
+    itsxact0002:
+      ansible_host: itsxact0002.xaas.epfl.ch

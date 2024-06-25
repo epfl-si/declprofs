@@ -1,5 +1,7 @@
-all:
+oldvms:
   hosts:
     exopgesrv92:
       inventory_environment: test
       # See vars.yml for variables that start with ansible_
+  vars:
+    ansible_remote_user: kis
