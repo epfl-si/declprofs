@@ -30,7 +30,7 @@ services:
       - db:db
     ports:
       # DECLPROFS_HTTP_PORT is set in .env
-      - "${DECLPROFS_HTTP_PORT}:80"
+      - "${DECLPROFS_HTTP_PORT}:8080"
 
 volumes:
   mariadb:
