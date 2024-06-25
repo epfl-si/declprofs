@@ -4,6 +4,8 @@ RUN set -e -x; export DEBIAN_FRONTEND=noninteractive; \
   apt -qy update; apt -qy install msmtp msmtp-mta libdbd-mysql-perl libwww-perl cpanminus; \
   apt clean
 
+COPY docker/msmtprc /etc/msmtprc
+
 FROM perl-base AS perl-build
 
 RUN set -e -x; export DEBIAN_FRONTEND=noninteractive; \
