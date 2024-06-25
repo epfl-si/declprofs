@@ -8,8 +8,6 @@ requires 'utf8::all';
 requires 'Import::Into';  # Indirect (hidden?) dependency of the former
 
 # in common with common-libs
-requires 'Crypt::GCM', '0.02';
-requires 'Crypt::Rijndael', '1.16';
 requires 'DBD::mysql', '';
 requires 'PDF::API2', '';
 requires 'Date::Calc', '';

@@ -376,31 +376,6 @@ sub errmsg {
   return $self->{errmsg};
 }
 
-use Crypt::Rijndael;
-my $aeskey = '1AB3H56FF09AEF6E1AB3H56EF09AEF6E';
-
-sub cryptpasswd {
-  my $pwd = shift;
-  my $aes = new Crypt::Rijndael (pack 'H*', $aeskey);
-  my $padlen = 16 - (length ($pwd) % 16);
-  $padlen = 0 if ($padlen == 16);
-  $pwd   .= "\0" x $padlen;
-  my  $c2 = $aes->encrypt ($pwd);
-  return unpack ('H*', $c2);
-}
-
-sub uncryptpasswd {
-  my $cpwd = shift;
-  return '' unless ($cpwd =~ /^[0-9a-f]+$/i);
-  my $aes = new Crypt::Rijndael (pack 'H*', $aeskey);
-  my $packed = pack 'H*', $cpwd;
-  my $pwd;
-  eval {
-    $pwd = $aes->decrypt (pack ('H*', $cpwd));
-  } || return '';
-  $pwd =~ s/\0//g;
-  return $pwd;
-}
 
 sub fixallaccents {
   my $self = shift;

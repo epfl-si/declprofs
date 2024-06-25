@@ -21,7 +21,6 @@ use Cadi::Accounts;
 use Cadi::Notifier;
 use Cadi::Groups;
 use Cadi::Accreds;
-use Crypt::Rijndael;
 use LWP::UserAgent;
 
 package Cadi::Services;
@@ -783,25 +782,6 @@ sub error {
 }
 
 my $aeskey = '1AB3H56FF09AEF6E1AB3H56EF09AEF6E';
-
-sub cryptpasswd {
-  my $pwd = shift;
-  my $aes = new Crypt::Rijndael (pack 'H*', $aeskey);
-  my $padlen = 16 - (length ($pwd) % 16);
-  $padlen = 0 if ($padlen == 16);
-  $pwd   .= "\0" x $padlen;
-  my  $c2 = $aes->encrypt ($pwd);
-  return unpack ('H*', $c2);
-}
-
-sub uncryptpasswd {
-  my $cpwd = shift;
-  my $aes = new Crypt::Rijndael (pack 'H*', $aeskey);
-  my $packed = pack 'H*', $cpwd;
-  my $pwd = $aes->decrypt (pack ('H*', $cpwd));
-  $pwd =~ s/\0//g;
-  return $pwd;
-}
 
 sub escapeurl {
   my $url = shift;

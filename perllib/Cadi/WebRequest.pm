@@ -3,7 +3,6 @@
 use strict;
 use utf8;
 use Encode;
-use Crypt::Rijndael;
 
 use lib qw(/opt/dinfo/lib/perl);
 use Tequila::Client;
@@ -189,63 +188,6 @@ sub loadcsrfkey {
   my $hexcsrfkey = <CSRFKEY>; chomp $hexcsrfkey;
   close (CSRFKEY);
   $self->{csrfkey} = pack ('H*', $hexcsrfkey);
-}
-
-sub makecsrftoken {
-  my   $self = shift;
-  my   $user = $self->{user};
-  my   $host = $self->{remaddr};
-  my $caller = $user->{sciper} if $user;
-  return $self->error ('initerror', 'makecsrftoken', $host, $user, $caller)
-    unless ($host && $user && $caller);
-
-  use bytes;
-  $self->loadcsrfkey () unless $self->{csrfkey};
-  return unless $self->{csrfkey};
-  my $csrfkey = $self->{csrfkey};
-  
-  my $aes = new Crypt::Rijndael ($csrfkey, Crypt::Rijndael::MODE_CBC ());
-  return $self->error ('nocryptomodule') unless $aes;
-
-  my $value = pack ('IC4a*', time, split (/\./, $host), $caller);
-  my $padlen = 16 - length ($value) % 16;
-  $padlen = 0 if ($padlen == 16);
-  $value .= "\0" x $padlen;
-  my $token = unpack 'H*', $aes->encrypt ($value);
-  return $token;
-}
-
-sub checkcsrftoken {
-  my ($self, $msg) = @_;
-  my   $user = $self->{user};
-  my   $host = $self->{remaddr};
-  my $caller = $user->{sciper};
-  return $self->error ('initerror', 'checkcsrftoken')
-    unless ($host && $user && $caller);
-
-  my $csrftoken = $self->{args}->{csrftoken};
-  #warn "COUCOU:checkcsrftoken ($csrftoken $msg)\n";
-  return $self->error ('nocsrftoken') unless $csrftoken;
-
-  $self->loadcsrfkey () unless $self->{csrfkey};
-  return unless $self->{csrfkey};
-  my $csrfkey = $self->{csrfkey};
-  
-  my $aes = new Crypt::Rijndael ($csrfkey, Crypt::Rijndael::MODE_CBC ());
-  return $self->error ('nocryptomodule') unless $aes;
-
-  my $result;
-  eval { $result = $aes->decrypt (pack 'H*', $csrftoken); };
-  return $self->error ('badcsrftoken', 1) unless $result;
-  $result =~ s/\0*$//;
-
-  my ($stamp, $ip1, $ip2, $ip3, $ip4, $keycaller) = unpack ('IC4a*', $result);
-  my $keyhost = join ('.', $ip1, $ip2, $ip3, $ip4);
-  $keycaller  =~ s/\0*$//;
-  return $self->error ('badcsrftoken',     3) if ($keycaller ne $caller);
-  return $self->error ('badcsrftoken',     4) if ($keyhost   ne $host);
-  return $self->error ('expiredcsrftoken', 1) if ($stamp < time - 86400);
-  return 1;
 }
 
 sub loadfromenv {

@@ -23,8 +23,6 @@ use Data::Dumper;
 use Carp;
 
 use HTML::Template;
-use Crypt::GCM;
-use Crypt::Rijndael;
 use CGI;
 use Net::LDAPS;
 use MIME::Words qw(:all);
@@ -46,7 +44,7 @@ sub dumpit {
 }
 
 #	- get access params
-use vars qw($roots $exclude_scipers $add_scipers $aeskey $test_email $cc_email
+use vars qw($roots $exclude_scipers $add_scipers $test_email $cc_email
             $DEBUG $FORCEPREVYEAR);
 require '/app/etc/access_params';  # Populates the variables above
 
@@ -1392,63 +1390,6 @@ sub initTempl {
   }
 
   return $template;
-}
-
-#_________________
-sub checkSession {
-  my ($sessionkey) = @_;
-  return unless $PROC;
-  return if $PROC eq 'login';
-
-	my $login_txt = $lang eq 'fr' ? qq{Veuillez refaire l'authentification Tequila} : qq{Please login again on Tequila};
-		 $login_txt = qq{<br><br><a href="$me/login?lang=$lang">$login_txt</a>};
-
-	unless ($sessionkey) {
-		tequila_client()->logout ();
-		error ($login_txt, 1);  
-	}
-
-	my ($sess, $iv, $tag) = split /:/, $sessionkey;
-  my $gcm = Crypt::GCM->new (
-       -key => pack ('H*', $aeskey),
-    -cipher => 'Crypt::Rijndael',
-  );
-	$gcm->set_iv(pack 'H*', $iv);
-  $gcm->aad('');
-  $gcm->tag(pack 'H*', $tag);
-
-  my $result = $gcm->decrypt (pack 'H*', $sess);
-  my ($ts, $host, $sciper ) = split /;/, unpack 'A*', $result;
-#warn "checkSession ERR sciper : sciper=$sciper, current=$CurrentUser->{sciper} ; $host : $ENV{REMOTE_ADDR}\n";
-
-	unless ( ($sciper && $sciper eq $CurrentUser->{sciper} ) 
-				&& ( $host eq $ENV{REMOTE_ADDR} )
-				&& ( (time - $ts) < $MAX_SESS_DURATION )
-	)
-	{
-warn "checkSession ERR sciper : sciper=$sciper, current=$CurrentUser->{sciper} ; $host : $ENV{REMOTE_ADDR}\n";
-		tequila_client()->logout ();
-		error ($login_txt, 1);  
-	}
-}
-
-#_________________
-sub makeSession {
-
-  my $value = pack ('A*', time.';'.$ENV{REMOTE_ADDR}.';'.$CurrentUser->{sciper} );
-	my $iv  	= genrandomkey(12);
-  my $gcm 	= Crypt::GCM->new (
-       -key => pack ('H*', $aeskey),
-    -cipher => 'Crypt::Rijndael',
-  );
-  $gcm->aad    ('');
-  $gcm->set_iv ($iv);
-  my $cipher 	= $gcm->encrypt ($value);
-  my $tag 		= $gcm->tag;
-  my $sesstxt = unpack ('H*', $cipher);
-	   $sesstxt = $sesstxt.':'.unpack ('H*', $iv).':'.unpack ('H*', $tag);
-  return $sesstxt;
-  
 }
 
 #_________________
