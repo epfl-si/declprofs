@@ -10,3 +10,9 @@
       name: firewalld
       state: stopped
       enabled: false
+
+- name: "General VM configuration"
+  hosts: vms
+  gather_facts: no
+  roles:
+  - roles/declprofs-vm

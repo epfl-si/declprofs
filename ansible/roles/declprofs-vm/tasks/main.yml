@@ -1,0 +1,11 @@
+- tags: always
+  include_vars: versions.yml
+
+- include_role:
+    name: epfl_si.traefik.traefik
+  vars:
+    traefik_root_location: /srv/traefik
+    traefik_container_platform: podman
+    traefik_podman_image: "docker.io/library/traefik:v{{ traefik_version }}"
+  tags:
+  - vm.traefik
