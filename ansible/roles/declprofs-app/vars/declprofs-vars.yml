@@ -1,0 +1,6 @@
+declprofs_topdir: /srv/declprofs
+declprofs_builddir: "{{ declprofs_topdir }}/build"
+
+declprofs_source_git_repository: https://github.com/epfl-si/declprofs
+declprofs_source_git_branch: feature/container
+

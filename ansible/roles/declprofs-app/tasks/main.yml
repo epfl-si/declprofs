@@ -1,0 +1,14 @@
+- tags: always
+  include_vars: declprofs-vars.yml
+
+- name: "Declprofs image"
+  when: inventory_environment == "test"
+  include_tasks:
+    file: declprofs-image.yml
+    apply:
+      tags:
+      - declprofs
+      - declprofs.image
+  tags:
+  - declprofs
+  - declprofs.image

@@ -5,3 +5,11 @@ oldvms:
       # See vars.yml for variables that start with ansible_
   vars:
     ansible_remote_user: kis
+
+containers:
+  "hosts":  # Scarequotes intended - Ansible wants to believe these
+            # are distinct "hosts", even though they are actually
+            # distinct containers (on the same host; see
+            # also containers: → vars: in inventory-prod.yml)
+    declprofs-test:
+      inventory_environment: test

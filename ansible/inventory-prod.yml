@@ -8,3 +8,12 @@ vms:
     # This is the new VM with RedHat 9:
     itsxact0002:
       ansible_host: itsxact0002.xaas.epfl.ch
+
+containers:
+  "hosts":  # Scarequotes intended - Ansible wants to believe these
+            # are distinct "hosts", even though they are actually
+            # distinct containers (on the same host)
+    declprofs-prod:
+      inventory_environment: prod
+  vars:
+    ansible_host: itsxact0002.xaas.epfl.ch

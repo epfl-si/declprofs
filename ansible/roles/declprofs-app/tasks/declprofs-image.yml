@@ -1,0 +1,16 @@
+- name: "{{ declprofs_builddir | dirname }}"
+  file:
+    path: "{{ declprofs_builddir | dirname }}"
+    state: directory
+    recurse: true
+
+- name: "Check out code to {{ declprofs_builddir }}"
+  ansible.builtin.git:
+    repo: "{{ declprofs_source_git_repository }}"
+    version: "{{ declprofs_source_git_branch }}"
+    dest: "{{ declprofs_builddir }}"
+
+- name: "Podman image"
+  containers.podman.podman_image:
+    name: declprofs
+    path: "{{ declprofs_builddir }}"

@@ -16,3 +16,9 @@
   gather_facts: no
   roles:
   - roles/declprofs-vm
+
+- name: "declprofs containerized application"
+  hosts: containers
+  gather_facts: no
+  roles:
+  - roles/declprofs-app

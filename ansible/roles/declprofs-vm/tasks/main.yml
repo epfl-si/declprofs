@@ -1,6 +1,17 @@
 - tags: always
   include_vars: versions.yml
 
+- name: "Install software"
+  include_tasks:
+    file: vm-software.yml
+    apply:
+      tags:
+      - vm
+      - vm.software
+  tags:
+  - vm
+  - vm.software
+
 - include_role:
     name: epfl_si.traefik.traefik
   vars:
