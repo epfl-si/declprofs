@@ -17,7 +17,7 @@ COPY --from=perl-build /usr/local/share/perl /usr/local/share/perl
 COPY --from=perl-build /usr/local/lib/x86_64-linux-gnu/perl /usr/local/lib/x86_64-linux-gnu/perl
 
 RUN mkdir -p /app/etc /app/sessions /usr/local/apache2/private/Tequila/Sessions
-RUN chmod 1777 /app/sessions /usr/local/apache2/private/Tequila/Sessions
+RUN chmod 1777 /app/sessions /usr/local/apache2/private/Tequila/Sessions /usr/local/apache2/logs
 
 COPY docker/httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY perllib /usr/local/lib/site_perl/
@@ -25,4 +25,4 @@ COPY perllib /usr/local/lib/site_perl/
 COPY declprofs.js declprofs.css /usr/local/apache2/htdocs/extra/
 COPY images /usr/local/apache2/htdocs/images
 COPY cgi-bin /usr/local/apache2/cgi-bin/
-COPY tmpl /app/
+COPY tmpl /app/tmpl
