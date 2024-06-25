@@ -1,0 +1,64 @@
+- name: "Systemd “quadlet” for declprofs ({{ declprofs_quadlet_config_file }})"
+  register: _podman_quadlet
+  copy:
+    dest: "{{ declprofs_quadlet_config_file }}"
+    content: >-
+      {{ lookup("template", "declprofs.container", rstrip=False) }}
+
+- name: Quadlet syntax check
+  changed_when: false
+  shell:
+    cmd: |
+      set -e -x
+      TMP_DIR=$(mktemp -d)
+      trap 'rm -rf "$TMP_DIR"' EXIT
+
+      cd "$TMP_DIR"
+      cp "{{ declprofs_quadlet_config_file }}" .
+
+      export QUADLET_UNIT_DIRS=$PWD
+      /usr/lib/systemd/system-generators/podman-system-generator --dryrun
+
+- name: "{{ declprofs_rundir }}"
+  ansible.builtin.file:
+    path: "{{ declprofs_rundir }}"
+    state: directory
+    recurse: true
+
+- name: "{{ declprofs_rundir }}/dbs.conf"
+  ansible.builtin.template:
+    src: dbs.conf
+    dest: "{{ declprofs_rundir }}/dbs.conf"
+
+- name: "{{ declprofs_rundir }}/access_params"
+  ansible.builtin.template:
+    src: access_params
+    dest: "{{ declprofs_rundir }}/access_params"
+
+- ansible.builtin.systemd_service:
+    name: "{{ declprofs_instance_name }}"
+    daemon_reload: "{{ _service_changed | bool }}"
+    enabled: true
+    state: >-
+      {{ "restarted" if ( _service_changed | default(False) )
+         else "started" }}
+  vars:
+    _service_changed: >-
+      {{ ( (_podman_quadlet | default({})) is changed ) | bool }}
+
+- epfl_si.traefik.dynamic_config:
+    name: "{{ declprofs_instance_name }}"
+    content: |
+      http:
+        services:
+          {{ declprofs_instance_name }}:
+            loadBalancer:
+              servers:
+              - url: http://localhost:{{ inventory_local_port }}
+        routers:
+          {{ declprofs_instance_name }}:
+            rule: Host("{{ inventory_web_hostname }}")
+            service: {{ declprofs_instance_name }}
+            tls: true
+  vars:
+    traefik_root_location: /srv/traefik

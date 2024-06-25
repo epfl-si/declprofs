@@ -12,3 +12,14 @@
   tags:
   - declprofs
   - declprofs.image
+
+- name: "Declprofs container"
+  include_tasks:
+    file: declprofs-container.yml
+    apply:
+      tags:
+      - declprofs
+      - declprofs.container
+  tags:
+  - declprofs
+  - declprofs.container

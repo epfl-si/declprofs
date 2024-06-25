@@ -1,0 +1,45 @@
+# -*- perl -*-
+
+$DEBUG = undef;
+
+# Super-users
+$roots 			= {
+  245902 => 1,  # V. Belmondo (APR)
+  243371 => 1,  # Dominique Quatravaux
+  114096 => 1,  # P. Saladino
+{% if inventory_environment == "production" %}
+  108509 => 1,	#	N. Boder
+  168466 => 1,	#	M. Studer
+  162030 => 1,  # Matteo Galli, https://go.epfl.ch/INC0506686
+  364327 => 1,  # Bernard Benoît, service manager
+{% else %}
+  223529 => 1,  # Tafani-Dereeper
+{% endif %}
+};
+
+{% if inventory_environment == "production" %}
+$cc_email				= 'facultyaffairs@epfl.ch';
+{% else %}
+$test_email = 'dominique.quatravaux@epfl.ch,vittoria.belmondo@epfl.ch';
+{% endif %}
+
+# Exceptions
+
+$exclude_scipers = '177247,171600,196676,155721,185424';
+
+# Comma-separated list of persons who may use declprofs without being
+# known as a Professor in Accred.
+{# Add yourself below (and remove or
+ # comment yourself out of $roots, above) to test-in-production. #}
+$add_scipers = '326993,243371';
+
+# Set up “extended deadline”; year won't roll over to the next one as
+# # long as the value is 1. If it is 0, the year rolls over on April 1st.
+{% if inventory_environment == "production" %}
+$FORCEPREVYEAR = 1;
+{% else %}
+$FORCEPREVYEAR = 0;
+{% endif %}
+
+# Please don't touch the last line.
+1;

@@ -1,0 +1,13 @@
+{# “Quadlet”-format configuration file that makes systemd take
+ # care of (re)starting the Declprofs Podman container
+ #
+ # On quadlets: https://www.redhat.com/sysadmin/quadlet-podman
+ # Reference: https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html
+ #}
+[Container]
+Image={{ declprofs_image_name }}
+ContainerName={{ declprofs_container_name }}
+User={{ declprofs_container_run_as_user }}
+PublishPort=127.0.0.1:{{ inventory_local_port }}:80
+Volume={{ declprofs_rundir }}/access_params:/app/etc/access_params:ro
+Volume={{ declprofs_rundir }}/dbs.conf:/usr/local/etc/dbs.conf:ro

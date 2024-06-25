@@ -15,5 +15,7 @@ containers:
             # distinct containers (on the same host)
     declprofs-prod:
       inventory_environment: prod
+      inventory_local_port: 8088
+      inventory_web_hostname: declprofs.epfl.ch
   vars:
     ansible_host: itsxact0002.xaas.epfl.ch
