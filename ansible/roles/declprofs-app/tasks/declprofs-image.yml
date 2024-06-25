@@ -14,3 +14,4 @@
   containers.podman.podman_image:
     name: declprofs
     path: "{{ declprofs_builddir }}"
+    force: true
