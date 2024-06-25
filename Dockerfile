@@ -1,7 +1,7 @@
 FROM docker.io/library/httpd:bookworm AS perl-base
 
 RUN set -e -x; export DEBIAN_FRONTEND=noninteractive; \
-  apt -qy update; apt -qy install libdbd-mysql-perl libwww-perl cpanminus; \
+  apt -qy update; apt -qy install msmtp msmtp-mta libdbd-mysql-perl libwww-perl cpanminus; \
   apt clean
 
 FROM perl-base AS perl-build
