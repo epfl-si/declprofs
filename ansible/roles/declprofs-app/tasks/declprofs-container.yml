@@ -57,9 +57,22 @@
               - url: http://localhost:{{ inventory_local_port }}
         routers:
           {{ declprofs_instance_name }}:
-            rule: Host("{{ inventory_web_hostname }}")
+            entrypoints: [ websecure ]
+            rule: Host(`{{ inventory_web_hostname }}`)
             service: {{ declprofs_instance_name }}
             tls: true
+      {% if inventory_environment == "prod" %}
+          a10-poor-mans-healthcheck:
+            entrypoints: [ websecure ]
+            rule: Path(`/`)
+            priority: 1  {# Lowest #}
+            service: {{ declprofs_instance_name }}
+            middlewares: [ redirect-to-probe ]
+        middlewares:
+          redirect-to-probe:
+            replacePath:
+              path: /cgi-bin/probe
+      {% endif %}
   vars:
     traefik_root_location: /srv/traefik
   tags:

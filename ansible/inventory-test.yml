@@ -14,4 +14,4 @@ containers:
     declprofs-test:
       inventory_environment: test
       inventory_local_port: 8087
-      inventory_web_hostname: declprofs-test.10.95.81.138.nip.io
+      inventory_web_hostname: declprofs-test.epfl.ch
