@@ -25,7 +25,6 @@ use Carp;
 use HTML::Template;
 use CGI;
 use Net::LDAPS;
-use MIME::Words qw(:all);
 use Mail::Sendmail;
 use PDF::API2;
 use Date::Calc;
