@@ -33,6 +33,6 @@ restore:
 	./devsupport/mariadb restoredb accred --no-data \
 	  --ignore-table=accred.test_view
 	./devsupport/mariadb restoretable accred accreds \
-	  --where='classid=5'
+	  --where='classid=5\ OR\ unitid=13030'
 
 	./devsupport/mariadb restoredb declprofs
