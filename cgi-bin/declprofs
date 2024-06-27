@@ -462,64 +462,24 @@ sub set_font {
 sub make {
   my ($cls, $details) = @_;
 
+  my $prof_act = delete $details->{prof_act} or die "make(): prof_act missing";
   my $self = $cls->new(%$details);
 
   my $ypos = $self->put_header();
   $ypos = $self->put_description ($ypos);
   $ypos = $self->put_identity ($ypos);
-  $ypos = $self->put_table_header ($ypos );
+  $self->put_prof_act($ypos, $prof_act);
 
-		#	- LOOP ON ITEMS
-		my $submitted;
-		foreach my $index (sort keys %{$self->{prof_act}}) {
-			next unless $self->{prof_act}->{$index}->{status} eq '2';
-			$submitted = $self->{prof_act}->{$index}->{ts};
-			
-			if ( $ypos < margin_bottom ) {
-				$self->next_page();
-				$ypos = $self->put_header();
-				$ypos = $self->put_table_header ($ypos );
-			}
-
-			$self->text_block(
-					$index,
-					-x        => 20/mm,
-					-y        => $ypos -7/pt,
-					-w        => 20/mm,
-					-h				=> 20/mm,
-				);
-			my $ypos1 = $self->text_block(
-					$self->{prof_act}->{$index}->{activity},
-					-x        => 32/mm,
-					-y        => $ypos -7/pt,
-					-w        => 140/mm,
-					-h				=> 20/mm,
-				);
-			my $ypos2 = $self->text_block(
-					$self->{prof_act}->{$index}->{principal},
-					-x        => 180/mm,
-					-y        => $ypos -7/pt,
-					-w        => 90/mm,
-					-h				=> 20/mm,
-			);
-                        # TODO: add dateFrom / dateTo
-
-			$ypos = min($ypos1, $ypos2);
-			$ypos -= 7/mm;
-                        $self->put_horizontal_line($ypos, stroke => 1);
-
-			$ypos -= in_table_margin_top;
-				
-		}
-
-		#	-- FOOTER
-		$self->set_font('Bold', 9/pt);
-		$self->text->fillcolor('red');
-		$self->text_block(
-				qq{Date:  $submitted},
-				-y        => 20/mm,
-				-h				=> 20/mm,
-			);
+  #	-- FOOTER
+  $self->set_font('Bold', 9/pt);
+  $self->text->fillcolor('red');
+  my $submitted = $prof_act->{(keys %$prof_act)[0]}->{ts};
+  $submitted = $details->{yeartodo} if (! $submitted);
+  $self->text_block(
+    qq{Date:  $submitted},
+    -y        => 20/mm,
+    -h				=> 20/mm,
+   );
 
 		#	- DONE		
 		$self->{pdf}->save;
@@ -541,7 +501,7 @@ sub put_horizontal_line {
   $self->gfx->stroke if ($opts{stroke});
 }
 
-sub put_table_header {
+sub put_prof_act_running_header {
   my ($self, $ypos) = @_;
 
   $ypos -= 5/mm;
@@ -568,6 +528,54 @@ sub put_table_header {
 	$self->put_horizontal_line($ypos, stroke => 1);
 
 	return $ypos - in_table_margin_top;
+}
+
+sub put_prof_act {
+  my ($self, $ypos, $prof_act) = @_;
+  $ypos = $self->put_prof_act_running_header ($ypos);
+
+	#	- LOOP ON ITEMS
+	my $submitted;
+	foreach my $index (sort keys %$prof_act) {
+		next unless $prof_act->{$index}->{status} eq '2';
+		$submitted = $prof_act->{$index}->{ts};
+		
+		if ( $ypos < margin_bottom ) {
+			$self->next_page();
+			$ypos = $self->put_header();
+			$ypos = $self->put_prof_act_running_header ($ypos );
+		}
+
+		$self->text_block(
+				$index,
+				-x        => 20/mm,
+				-y        => $ypos -7/pt,
+				-w        => 20/mm,
+				-h				=> 20/mm,
+			);
+		my $ypos1 = $self->text_block(
+				$prof_act->{$index}->{activity},
+				-x        => 32/mm,
+				-y        => $ypos -7/pt,
+				-w        => 140/mm,
+				-h				=> 20/mm,
+			);
+		my $ypos2 = $self->text_block(
+				$prof_act->{$index}->{principal},
+				-x        => 180/mm,
+				-y        => $ypos -7/pt,
+				-w        => 90/mm,
+				-h				=> 20/mm,
+		);
+                # TODO: add dateFrom / dateTo
+
+		$ypos = min($ypos1, $ypos2);
+		$ypos -= 7/mm;
+                $self->put_horizontal_line($ypos, stroke => 1);
+
+		$ypos -= in_table_margin_top;
+			
+	}
 }
 
 sub put_identity {
