@@ -28,6 +28,7 @@ use Net::LDAPS;
 use Mail::Sendmail;
 use Date::Calc;
 use Encode qw(encode);
+use Tie::IxHash;
 
 #	- get access params
 use vars qw($roots $exclude_scipers $add_scipers $test_email $cc_email
@@ -413,6 +414,21 @@ use constant margin_bottom				=> 25/mm;
 use constant margin_left				=> 20/mm;
 use constant in_table_margin_top		=> 5/mm;
 
+tie (our %prof_act_cols, "Tie::IxHash",
+  activity => {
+    title => 'Type and area of activity (including dual professorships)',
+    x => 32/mm,
+    w => 140/mm,
+  },
+  principal => {
+    title => 'Name and address of principal (or institution)',
+    x => 180/mm,
+    w => 90/mm,
+  }
+  # TODO: add dateFrom / dateTo
+);
+
+
 sub new {
   my $cls = shift;
   my (undef, $tempfile) = tempfile(SUFFIX => ".pdf");
@@ -507,27 +523,27 @@ sub put_prof_act_running_header {
   $ypos -= 5/mm;
   $self->put_horizontal_line($ypos);
 
+  my $h = 20/mm;
+
   $ypos -= 7/mm;
-	$self->set_font('Roman', 9/pt );
-        $ypos = min(
-          $self->text_block(
-			'Type and area of activity (including dual professorships)',
-			-x        => 32/mm,
-			-y        => $ypos,
-			-h				=> 20/mm,
-		),
-	$self->text_block(
-			'Name and address of principal (or institution)',
-			-x        => 180/mm,
-			-y        => $ypos,
-			-h				=> 20/mm,
-		),
-          # TODO: add from / to headers
-          );
+  $self->set_font('Roman', 9/pt );
+  $ypos = min(map {
+    my $k = $_;
+    my $col = $prof_act_cols{$k};
 
-	$self->put_horizontal_line($ypos, stroke => 1);
+    $self->text_block(
+			$col->{title},
+			-x        => $col->{x},
+			-y        => $ypos,
+			-h        => $h,
+			-w        => $col->{w},
+		),
 
-	return $ypos - in_table_margin_top;
+  } (keys %prof_act_cols));
+
+  $self->put_horizontal_line($ypos, stroke => 1);
+
+  return $ypos - in_table_margin_top;
 }
 
 sub put_prof_act {
@@ -546,35 +562,32 @@ sub put_prof_act {
 			$ypos = $self->put_prof_act_running_header ($ypos );
 		}
 
+                my $h = 20/mm;
+
 		$self->text_block(
 				$index,
 				-x        => 20/mm,
 				-y        => $ypos -7/pt,
-				-w        => 20/mm,
-				-h				=> 20/mm,
+				-h        => $h,
+                                -w        => 20/mm,
 			);
-		my $ypos1 = $self->text_block(
-				$prof_act->{$index}->{activity},
-				-x        => 32/mm,
+		$ypos = min(map {
+                  my $k = $_;
+                  my $col = $prof_act_cols{$k};
+                  $self->text_block(
+				$prof_act->{$index}->{$k},
+				-x        => $col->{x},
 				-y        => $ypos -7/pt,
-				-w        => 140/mm,
-				-h				=> 20/mm,
+				-h	  => $h,
+				-w        => $col->{w},
 			);
-		my $ypos2 = $self->text_block(
-				$prof_act->{$index}->{principal},
-				-x        => 180/mm,
-				-y        => $ypos -7/pt,
-				-w        => 90/mm,
-				-h				=> 20/mm,
-		);
-                # TODO: add dateFrom / dateTo
+                } (keys %prof_act_cols));
 
-		$ypos = min($ypos1, $ypos2);
 		$ypos -= 7/mm;
                 $self->put_horizontal_line($ypos, stroke => 1);
 
 		$ypos -= in_table_margin_top;
-			
+
 	}
 }
 
