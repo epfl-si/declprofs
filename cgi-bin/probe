@@ -16,13 +16,12 @@ use lib '/opt/declprofs/lib/perl';
 use CGI;
 
 use Cadi::CadiDB;
-use Cadi::WSUtils;
+use JSON;
 
 use vars qw($pi $qs $us $me $dbh );
 
 my $pi 					 = $ENV {PATH_INFO};
 my $DEBUG				 = -f '/var/www/vhosts/declprofs.epfl.ch/private/etc/MASTER' ? 0 : 1;
-$ENV {DBCONFDIR} = '/opt/declprofs/etc';
 
 #warn "--> start probe from $ENV{REMOTE_ADDR} : pathinfo=$pi\n";
 
@@ -35,9 +34,7 @@ my $query = new CGI;
 my %args;
 my @params = $query->param;
 foreach my $item (@params) {
-	if ($item eq 'metrics') {
 		$args{$item} = 1;
-	}
 } 
 my $probe ;
    $probe->{status} = 'ok';
@@ -49,7 +46,7 @@ if ( $pi =~ /usage/ ) {
 		
 		},
 	} ;
-	Cadi::WSUtils::json_response ( { probe => $return, } );
+	json_response ( { probe => $return, } );
 	exit;
 }	
 
@@ -119,9 +116,19 @@ $metrics} ;
 	}
 
 	if ( $args{verbose} ) {
-		Cadi::WSUtils::json_response ( $probe );
+		json_response ( $probe );
 	} else {
 		print "Content-Type: text/html\r\n\r\n";
 	}
 
 	exit;
+
+sub json_response {
+  my $msg = shift;
+  #$msg->{error} = 0;
+  #$msg->{error_description} = '';
+  my $json = encode_json ($msg);
+  print qq{Access-Control-Allow-Origin: *\r\n};
+  print qq{Content-type: application/json;charset=utf-8\r\n\r\n};
+  print $json, "\n";
+}
