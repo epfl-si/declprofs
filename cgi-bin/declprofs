@@ -487,8 +487,6 @@ sub make {
 					-y        => $ypos -7/pt,
 					-w        => 20/mm,
 					-h				=> 20/mm,
-					-lead     => std_lead ,
-					-align    => 'justify',
 				);
 			my $ypos1 = $self->text_block(
 					$self->{prof_act}->{$index}->{activity},
@@ -496,8 +494,6 @@ sub make {
 					-y        => $ypos -7/pt,
 					-w        => 140/mm,
 					-h				=> 20/mm,
-					-lead     => std_lead ,
-					-align    => 'justify',
 				);
 			my $ypos2 = $self->text_block(
 					$self->{prof_act}->{$index}->{principal},
@@ -505,8 +501,6 @@ sub make {
 					-y        => $ypos -7/pt,
 					-w        => 90/mm,
 					-h				=> 20/mm,
-					-lead     => std_lead ,
-					-align    => 'justify',
 			);
                         # TODO: add dateFrom / dateTo
 
@@ -523,12 +517,8 @@ sub make {
 		$self->text->fillcolor('red');
 		$self->text_block(
 				qq{Date:  $submitted},
-				-x        => margin_left,
 				-y        => 20/mm,
-				-w        => text_std_width,
 				-h				=> 20/mm,
-				-lead     => std_lead ,
-				-align    => 'justify',
 			);
 
 		#	- DONE		
@@ -564,19 +554,13 @@ sub put_table_header {
 			'Type and area of activity (including dual professorships)',
 			-x        => 32/mm,
 			-y        => $ypos,
-			-w        => text_std_width,
 			-h				=> 20/mm,
-			-lead     => std_lead ,
-			-align    => 'justify',
 		),
 	$self->text_block(
 			'Name and address of principal (or institution)',
 			-x        => 180/mm,
 			-y        => $ypos,
-			-w        => text_std_width,
 			-h				=> 20/mm,
-			-lead     => std_lead ,
-			-align    => 'justify',
 		),
           # TODO: add from / to headers
           );
@@ -594,33 +578,22 @@ sub put_identity {
 	$self->{page_text}->fillcolor('red');
 	$self->text_block(
 			"Full Name:  $self->{user}->{firstname} $self->{user}->{lastname}",
-			-x        => margin_left,
 			-y        => $ypos,
-			-w        => text_std_width,
 			-h				=> 20/mm,
-			-lead     => std_lead ,
-			-align    => 'justify',
 		);
 	$self->text_block(
 			"EPFL School / College:   $self->{hierarchie}",
 			-x        => 180/mm,
 			-y        => $ypos,
-			-w        => text_std_width,
 			-h				=> 20/mm,
-			-lead     => std_lead ,
-			-align    => 'justify',
 		);
 
 		#	- certification line
 		$self->{page_text}->fillcolor('black');
 		return $self->text_block(
 				$pdf_textes[5],
-				-x        => margin_left,
 				-y        => $ypos - 7/mm,
-				-w        => text_std_width,
 				-h				=> 20/mm,
-				-lead     => std_lead ,
-				-align    => 'justify',
 			);
 }
 
@@ -636,52 +609,35 @@ sub put_description {
 	$self->set_font('Roman', 9.5/pt);
 	$ypos = $self->text_block(
 			$pdf_txts[0],
-			-x        => margin_left,
 			-y        => $ypos - 20/pt,
-			-w        => text_std_width,
 			-h				=> 20/mm,
-			-lead     => std_lead ,
-			-align    => 'justify',
 	);
 	$self->set_font('Roman',  8/pt);
 	$ypos = $self->text_block(
 			$pdf_txts[1],
-			-x        => margin_left,
 			-y        => $ypos - 7/pt,
-			-w        => text_std_width,
 			-h				=> 25/mm,
 			-lead     => small_lead,
-			-align    => 'justify',
 	);
 	$self->set_font('Italic', 8/pt);
 	$ypos = $self->text_block(
 			$pdf_txts[2],
-			-x        => margin_left,
 			-y        => $ypos - 7/pt,
-			-w        => text_std_width,
 			-h				=> 25/mm,
 			-lead     => small_lead,
-			-align    => 'justify',
 	);
 	$self->set_font('Italic', 8/pt);
 	$ypos = $self->text_block(
 			$pdf_txts[3],
-			-x        => margin_left,
 			-y        => $ypos - 7/pt,
-			-w        => text_std_width,
 			-h				=> 25/mm,
 			-lead     => small_lead,
-			-align    => 'justify',
 	);
 	$self->set_font('Roman', 9.5/pt);
 	$ypos = $self->text_block(
 			$pdf_txts[4],
-			-x        => margin_left,
 			-y        => $ypos - 7/pt,
-			-w        => text_std_width,
 			-h				=> 20/mm,
-			-lead     => std_lead ,
-			-align    => 'justify',
 		);
 
 	return $ypos;
@@ -695,9 +651,7 @@ sub put_header {
 
 	$self->text_block(
 			'CONFIDENTIAL',
-			-x        => margin_left,
 			-y        => 198/mm,
-			-w        => text_std_width,
 			-h        => 110/mm - 7/pt,
 		);
 
@@ -712,23 +666,19 @@ sub put_header {
 			'Activities engaged in outside of EPFL',
 			-x        => 100/mm,
 			-y        => 175/mm,
-			-w        => text_std_width,
 		);
 
 	$ypos = $self->text_block(
 			'Professors\' annual disclosure  - '.$self->{yeartodo},
 			-x        => 100/mm,
 			-y        => $ypos - 12/pt,
-			-w        => text_std_width,
 		);
 
 	#	-- PAGE NB
 	$self->set_font('Roman', 8/pt );
 	$self->text_block(
 			qq{Page $self->{page_nb}},
-			-x        => margin_left,
 			-y        => 10/mm,
-			-w        => text_std_width,
 		);
 		
 		return $ypos;
@@ -742,6 +692,10 @@ sub text_block {
      my $self = shift;
      my $text        = shift;
      my %arg 				 = @_;
+     $arg{-lead}  ||= std_lead;
+     $arg{-w}     ||= text_std_width;
+     $arg{-align} ||= "justify";
+     $arg{-x}     ||= margin_left;
 
      my $text_object = $self->{page_text};
 
