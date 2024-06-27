@@ -26,22 +26,8 @@ use HTML::Template;
 use CGI;
 use Net::LDAPS;
 use Mail::Sendmail;
-use PDF::API2;
 use Date::Calc;
 use Encode qw(encode);
-use List::Util qw(min);
-
-sub dumpit {
-  my @things = @_;
-
-  map {
-    if (ref($_)) {
-      $_ = Data::Dumper->new([$_])->Indent(0)->Dump;
-    }
-  } @things;
-
-  warn(Carp::longmess(join(" ", @things)));
-}
 
 #	- get access params
 use vars qw($roots $exclude_scipers $add_scipers $test_email $cc_email
@@ -52,16 +38,10 @@ use vars qw($pi $qs $us $me $key $msg $lang $ldap
 			$tmpldir $dbh $query $year $yeartodo $REGEX_SCIPER $login_as
 			$Persons $authtoken $MAX_SESS_DURATION $AP_email $URL
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
-			$pdf $page $gfx %font $page_text $page_nb $BOTTOM $LEFT $PROC $MAX_DELAY $Roles
+			$PROC $MAX_DELAY $Roles
 			$SESSDIR $Accreds $allRemarks
 			$ROLE_RESPIT $ROLE_ADMINIT $PREPROD $MINPROFACCRED $FORCEPREVYEAR
 	);
-
-use constant mm 				=> 25.4 / 72;
-use constant in 				=> 1 / 72;
-use constant pt 				=> 1;
-use constant std_lead 	=> 12/mm;
-use constant small_lead => 10/mm;
 
 #	- accred
 $ROLE_RESPIT	= 19;
@@ -81,17 +61,6 @@ $MINPROFACCRED	= 30; #	- min prof accred (days)
 
 $AP_URL					= "https://professeurs.epfl.ch/page-26444-en.html";
 $SESSDIR				= '/app/sessions/';
-
-#		- PDF CREATOR
-my $pdf_tmpdir			= '/tmp/';
-my $epfl_logo	 	= '/usr/local/apache2/htdocs/images/epfl_logo.png';
-my $std_lead 	  = 12/pt;
-my $small_lead  = 10/pt;
-my $std_font 	  = 'Verdana';
-my $std_width	  = 260/mm;
-$BOTTOM					= 25/mm;
-$LEFT						= 20/mm;
-$page_nb				= 1;
 
 #	- record status
 $INACT					= 0;	#	- replaced by more recent
@@ -416,6 +385,499 @@ main::error ("FATAL DB ACCESS") unless $_dbaccrh;
 }
 
 
+package PDFDecl;   ##########################################################
+
+use PDF::API2;
+use File::Temp qw(tempfile);
+use List::Util qw(min);
+use File::Slurp;
+
+my @pdf_textes = (
+ qq|Once per year, professors shall disclose outside activities, according to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1).|,
+ qq|Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1.|,
+ qq||,
+ qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3). All activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, shall be listed.|,
+ qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
+     );
+
+
+use constant mm 				=> 25.4 / 72;
+use constant in 				=> 1 / 72;
+use constant pt 				=> 1;
+use constant std_lead 	=> 12/pt;
+use constant small_lead => 10/pt;
+
+use constant epfl_logo	 	=> '/usr/local/apache2/htdocs/images/epfl_logo.png';
+use constant text_std_width	  => 260/mm;
+use constant margin_bottom				=> 25/mm;
+
+use constant margin_left				=> 20/mm;
+use constant in_table_margin_top		=> 5/mm;
+
+sub new {
+  my $cls = shift;
+  my (undef, $tempfile) = tempfile(SUFFIX => ".pdf");
+  my $self = bless {
+    pdf_file => $tempfile,
+    @_
+  };
+
+  $self->{pdf} = PDF::API2->new( -file => $self->{pdf_file} ) || error ("Unable to create PDF : $self->{pdf_file}");
+
+  $self->next_page();
+  return $self;
+}
+
+sub next_page () {
+  my ($self) = @_;
+  if ($self->{page_nb}) {
+    $self->{page_nb}++;
+  } else {
+    $self->{page_nb} = 1;
+  }
+  $self->{page} = $self->{pdf}->page;
+  $self->{page}->mediabox(842, 595);
+
+  $self->{page_text} = $self->{page}->text;
+  $self->{gfx} = $self->{page}->gfx;
+}
+
+sub page { shift->{page} }
+sub text { shift->{page_text} }
+sub gfx { shift->{gfx} }
+
+sub set_font {
+  my ($self, $weight, $size) = @_;
+
+  my %verdana_weight_suffix = (
+    Bold => ",Bold",
+    Roman => "",
+    Italic => ",Italic"
+   );
+  defined(my $weight_suffix = $verdana_weight_suffix{$weight}) or
+    die "Unknown weight: $weight";
+
+  $self->text->font($self->{pdf}->corefont("Verdana,$weight_suffix"), $size);
+}
+
+sub make {
+  my ($cls, $details) = @_;
+
+  my $self = $cls->new(%$details);
+
+  my $ypos = $self->put_header();
+  $ypos = $self->put_description ($ypos);
+  $ypos = $self->put_identity ($ypos);
+  $ypos = $self->put_table_header ($ypos );
+
+		#	- LOOP ON ITEMS
+		my $submitted;
+		foreach my $index (sort keys %{$self->{prof_act}}) {
+			next unless $self->{prof_act}->{$index}->{status} eq '2';
+			$submitted = $self->{prof_act}->{$index}->{ts};
+			
+			if ( $ypos < margin_bottom ) {
+				$self->next_page();
+				$ypos = $self->put_header();
+				$ypos = $self->put_table_header ($ypos );
+			}
+
+			$self->text_block(
+					$index,
+					-x        => 20/mm,
+					-y        => $ypos -7/pt,
+					-w        => 20/mm,
+					-h				=> 20/mm,
+					-lead     => std_lead ,
+					-align    => 'justify',
+				);
+			my $ypos1 = $self->text_block(
+					$self->{prof_act}->{$index}->{activity},
+					-x        => 32/mm,
+					-y        => $ypos -7/pt,
+					-w        => 140/mm,
+					-h				=> 20/mm,
+					-lead     => std_lead ,
+					-align    => 'justify',
+				);
+			my $ypos2 = $self->text_block(
+					$self->{prof_act}->{$index}->{principal},
+					-x        => 180/mm,
+					-y        => $ypos -7/pt,
+					-w        => 90/mm,
+					-h				=> 20/mm,
+					-lead     => std_lead ,
+					-align    => 'justify',
+			);
+                        # TODO: add dateFrom / dateTo
+
+			$ypos = min($ypos1, $ypos2);
+			$ypos -= 7/mm;
+                        $self->put_horizontal_line($ypos, stroke => 1);
+
+			$ypos -= in_table_margin_top;
+				
+		}
+
+		#	-- FOOTER
+		$self->set_font('Bold', 9/pt);
+		$self->text->fillcolor('red');
+		$self->text_block(
+				qq{Date:  $submitted},
+				-x        => margin_left,
+				-y        => 20/mm,
+				-w        => text_std_width,
+				-h				=> 20/mm,
+				-lead     => std_lead ,
+				-align    => 'justify',
+			);
+
+		#	- DONE		
+		$self->{pdf}->save;
+		$self->{pdf}->end;
+
+  my $bytes = File::Slurp::read_file($self->{pdf_file}, { binmode => ":bytes" });
+  die "Empty PDF!" unless length($bytes);
+  return $bytes;
+}
+
+sub put_horizontal_line {
+  my ($self, $ypos, %opts) = @_;
+
+  $opts{max_x} = 280/mm if (! $opts{max_x});
+
+  $self->gfx->linedash( );
+  $self->gfx->move(  margin_left, $ypos );
+  $self->gfx->line( $opts{max_x}, $ypos );
+  $self->gfx->stroke if ($opts{stroke});
+}
+
+sub put_table_header {
+  my ($self, $ypos) = @_;
+
+  $ypos -= 5/mm;
+  $self->put_horizontal_line($ypos);
+
+  $ypos -= 7/mm;
+	$self->set_font('Roman', 9/pt );
+        $ypos = min(
+          $self->text_block(
+			'Type and area of activity (including dual professorships)',
+			-x        => 32/mm,
+			-y        => $ypos,
+			-w        => text_std_width,
+			-h				=> 20/mm,
+			-lead     => std_lead ,
+			-align    => 'justify',
+		),
+	$self->text_block(
+			'Name and address of principal (or institution)',
+			-x        => 180/mm,
+			-y        => $ypos,
+			-w        => text_std_width,
+			-h				=> 20/mm,
+			-lead     => std_lead ,
+			-align    => 'justify',
+		),
+          # TODO: add from / to headers
+          );
+
+	$self->put_horizontal_line($ypos, stroke => 1);
+
+	return $ypos - in_table_margin_top;
+}
+
+sub put_identity {
+	my ($self, $ypos) = @_;
+	   $ypos -= 7/mm;
+
+	$self->set_font('Bold', 9/pt );
+	$self->{page_text}->fillcolor('red');
+	$self->text_block(
+			"Full Name:  $self->{user}->{firstname} $self->{user}->{lastname}",
+			-x        => margin_left,
+			-y        => $ypos,
+			-w        => text_std_width,
+			-h				=> 20/mm,
+			-lead     => std_lead ,
+			-align    => 'justify',
+		);
+	$self->text_block(
+			"EPFL School / College:   $self->{hierarchie}",
+			-x        => 180/mm,
+			-y        => $ypos,
+			-w        => text_std_width,
+			-h				=> 20/mm,
+			-lead     => std_lead ,
+			-align    => 'justify',
+		);
+
+		#	- certification line
+		$self->{page_text}->fillcolor('black');
+		return $self->text_block(
+				$pdf_textes[5],
+				-x        => margin_left,
+				-y        => $ypos - 7/mm,
+				-w        => text_std_width,
+				-h				=> 20/mm,
+				-lead     => std_lead ,
+				-align    => 'justify',
+			);
+}
+
+sub put_description {
+	my ($self, $ypos) = @_;
+        my @pdf_txts = @pdf_textes;
+	do {
+          s/YEARNEXT/$self->{yeartodo} + 1/ge;
+          s/YEARTODO/$self->{yeartodo}/g
+        } for @pdf_txts;
+
+	#	- DESCRIPTION
+	$self->set_font('Roman', 9.5/pt);
+	$ypos = $self->text_block(
+			$pdf_txts[0],
+			-x        => margin_left,
+			-y        => $ypos - 20/pt,
+			-w        => text_std_width,
+			-h				=> 20/mm,
+			-lead     => std_lead ,
+			-align    => 'justify',
+	);
+	$self->set_font('Roman',  8/pt);
+	$ypos = $self->text_block(
+			$pdf_txts[1],
+			-x        => margin_left,
+			-y        => $ypos - 7/pt,
+			-w        => text_std_width,
+			-h				=> 25/mm,
+			-lead     => small_lead,
+			-align    => 'justify',
+	);
+	$self->set_font('Italic', 8/pt);
+	$ypos = $self->text_block(
+			$pdf_txts[2],
+			-x        => margin_left,
+			-y        => $ypos - 7/pt,
+			-w        => text_std_width,
+			-h				=> 25/mm,
+			-lead     => small_lead,
+			-align    => 'justify',
+	);
+	$self->set_font('Italic', 8/pt);
+	$ypos = $self->text_block(
+			$pdf_txts[3],
+			-x        => margin_left,
+			-y        => $ypos - 7/pt,
+			-w        => text_std_width,
+			-h				=> 25/mm,
+			-lead     => small_lead,
+			-align    => 'justify',
+	);
+	$self->set_font('Roman', 9.5/pt);
+	$ypos = $self->text_block(
+			$pdf_txts[4],
+			-x        => margin_left,
+			-y        => $ypos - 7/pt,
+			-w        => text_std_width,
+			-h				=> 20/mm,
+			-lead     => std_lead ,
+			-align    => 'justify',
+		);
+
+	return $ypos;
+}
+
+sub put_header {
+	my ($self) = @_;
+
+        $self->set_font("Bold", 9.5/pt );
+	$self->{page_text}->fillcolor('black');
+
+	$self->text_block(
+			'CONFIDENTIAL',
+			-x        => margin_left,
+			-y        => 198/mm,
+			-w        => text_std_width,
+			-h        => 110/mm - 7/pt,
+		);
+
+	my $logo_file = do { no utf8::all; $self->{pdf}->image_png(epfl_logo); };
+	$self->gfx->image( $logo_file, 229/mm, 188/mm, 50/mm, 14/mm );
+
+        $self->put_horizontal_line(195/mm, max_x => 215/mm, stroke => 1);
+
+	#	- HEADER
+	$self->set_font('Bold', 10/pt );
+	my $ypos = $self->text_block(
+			'Activities engaged in outside of EPFL',
+			-x        => 100/mm,
+			-y        => 175/mm,
+			-w        => text_std_width,
+		);
+
+	$ypos = $self->text_block(
+			'Professors\' annual disclosure  - '.$self->{yeartodo},
+			-x        => 100/mm,
+			-y        => $ypos - 12/pt,
+			-w        => text_std_width,
+		);
+
+	#	-- PAGE NB
+	$self->set_font('Roman', 8/pt );
+	$self->text_block(
+			qq{Page $self->{page_nb}},
+			-x        => margin_left,
+			-y        => 10/mm,
+			-w        => text_std_width,
+		);
+		
+		return $ypos;
+}
+
+#_______________
+sub text_block {
+#
+# text_block() is © Rick Measham, 2004-2007. The latest version can be found in the tutorial located at http://rick.measham.id.au/pdf-api2/
+#
+     my $self = shift;
+     my $text        = shift;
+     my %arg 				 = @_;
+
+     my $text_object = $self->{page_text};
+
+     # Get the text in paragraphs
+     my @paragraphs = split( /\n/, $text );
+     # calculate width of all words
+     my $space_width = $text_object->advancewidth(' ');
+
+     my @words = split( /\s+/, $text );
+     my %width = ();
+     foreach (@words) {
+         next if exists $width{$_};
+         $width{$_} = $text_object->advancewidth($_);
+     }
+
+     my $ypos 				 	 = $arg{'-y'};
+     my @paragraph 			 = split( / /, shift(@paragraphs) );
+     my $first_line      = 1;
+     my $first_paragraph = 1;
+
+     # while we can add another line
+     while ( $ypos >= $arg{'-y'} - $arg{'-h'} + $arg{'-lead'} ) {
+
+         unless (@paragraph) {
+             last unless scalar @paragraphs;
+             @paragraph = split( / /, shift(@paragraphs) );
+             $ypos -= $arg{'-parspace'} if $arg{'-parspace'};
+             last unless $ypos >= $arg{'-y'} - $arg{'-h'};
+
+             $first_line      = 1;
+             $first_paragraph = 0;
+         }
+
+         my $xpos = $arg{'-x'};
+
+         # while there's room on the line, add another word
+         my @line = ();
+
+         my $line_width = 0;
+         if ( $first_line && exists $arg{'-hang'} ) {
+
+             my $hang_width = $text_object->advancewidth( $arg{'-hang'} );
+
+             $text_object->translate( $xpos, $ypos );
+             $text_object->text( $arg{'-hang'} );
+
+             $xpos       += $hang_width;
+             $line_width += $hang_width;
+             $arg{'-indent'} += $hang_width if $first_paragraph;
+
+         }
+         elsif ( $first_line && exists $arg{'-flindent'} ) {
+
+             $xpos       += $arg{'-flindent'};
+             $line_width += $arg{'-flindent'};
+
+         }
+         elsif ( $first_paragraph && exists $arg{'-fpindent'} ) {
+
+             $xpos       += $arg{'-fpindent'};
+             $line_width += $arg{'-fpindent'};
+
+         }
+         elsif ( exists $arg{'-indent'} ) {
+
+             $xpos       += $arg{'-indent'};
+             $line_width += $arg{'-indent'};
+
+         }
+
+         while ( @paragraph
+             and $line_width + ( scalar(@line) * $space_width ) +
+             $width{ $paragraph[0] } < $arg{'-w'} )
+         {
+
+             $line_width += $width{ $paragraph[0] };
+             push( @line, shift(@paragraph) );
+
+         }
+
+         # calculate the space width
+         my ( $wordspace, $align );
+         if ( $arg{'-align'} eq 'fulljustify'
+             or ( $arg{'-align'} eq 'justify' and @paragraph ) )
+         {
+
+             if ( scalar(@line) == 1 ) {
+                 @line = split( //, $line[0] );
+
+             }
+             $wordspace = ( $arg{'-w'} - $line_width ) / ( scalar(@line) - 1 );
+             $align 		= 'justify';
+         }
+         else {
+             $align = ( $arg{'-align'} eq 'justify' ) ? 'left' : $arg{'-align'};
+             $wordspace = $space_width;
+         }
+         $line_width += $wordspace * ( scalar(@line) - 1 );
+         if ( $align eq 'justify' ) {
+             foreach my $word (@line) {
+
+                 $text_object->translate( $xpos, $ypos );
+                 $text_object->text($word);
+
+                 $xpos += ( $width{$word} + $wordspace ) if (@line);
+
+             }
+         }
+         else {
+
+             # calculate the left hand position of the line
+             if ( $align eq 'right' ) {
+                 $xpos += $arg{'-w'} - $line_width;
+
+             }
+             elsif ( $align eq 'center' ) {
+                 $xpos += ( $arg{'-w'} / 2 ) - ( $line_width / 2 );
+
+             }
+
+             # render the line
+             $text_object->translate( $xpos, $ypos );
+
+             $text_object->text( join( ' ', @line ) );
+
+         }
+         $ypos -= $arg{'-lead'};
+         $first_line = 0;
+
+     }
+
+     return $ypos
+}
+
+
 package main;   #############################################################
 
 
@@ -446,14 +908,6 @@ $yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
 $allRemarks		= getAllRemarks();
 
 my $limit_year = $yeartodo eq $year ? $year + 1 : $yeartodo;
-
-my @pdf_textes = (
- qq|Once per year, professors shall disclose outside activities, according to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1).|,
- qq|Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1.|,
- qq||,
- qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3). All activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, shall be listed.|,
- qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
-     );
 
   if 	  ($PROC eq 'save') {
   	save   ();
@@ -1620,505 +2074,45 @@ $msg
 
 }
 
-#	======= PDF ======
-#_____________
+sub dumpit {
+  my @things = @_;
+
+  map {
+    if (ref($_)) {
+      $_ = Data::Dumper->new([$_])->Indent(0)->Dump;
+    }
+  } @things;
+
+  warn(Carp::longmess(join(" ", @things)));
+}
+
+
 sub pdf {
+  my $scipertodo;
+  if ($CurrentUser->is_root && $args->{scipertodo}) {
+    $scipertodo = $args->{scipertodo};
+  } else {
+    $scipertodo = $CurrentUser->{sciper};
+  }
+
+  my $user 		= User->by_sciper($scipertodo);
+  error ("person not found") unless $user;
+  my $hierarchie = Profs->by_year($yeartodo)->hierarchy($scipertodo);
 
     print "Content-Type: application/pdf\n\n";
-		my $pdffile = makePDF ();
-		open (PDF, $pdffile);
-                binmode(PDF);
-		while (<PDF>) {
-			print $_;
-		}
-		close PDF;
-		unlink ($pdffile) if -e $pdffile;
-		exit;
 
+    my $prof_act   = getProfAct ($scipertodo, $yeartodo);
+    dumpit "--> PDFDecl->make : getProfAct -> " => $prof_act;
+    print PDFDecl->make (
+      { user => $user,
+        yeartodo => $yeartodo,
+        scipertodo => $scipertodo,
+        prof_act => $prof_act,
+        hierarchie => $hierarchie
+      });
+    exit;
 }
 
-#_____________
-sub makePDF {
-		my $activity = shift;
-
-		my $scipertodo = $CurrentUser->{sciper};
-		   $scipertodo = $args->{'scipertodo'} if $args->{'scipertodo'} && $CurrentUser->is_root;
-
-		$yeartodo   = $args->{'yeartodo'} ? $args->{'yeartodo'} : $yeartodo;
-		my $pdf_file 	 = $pdf_tmpdir.$scipertodo.'_'.$yeartodo.'.pdf';
-
-		$pdf 	= PDF::API2->new( -file => $pdf_file ) || error ("Unable to create PDF : $pdf_file");
-		$page = $pdf->page();
-		$gfx 	= $page->gfx;
-		$page->mediabox(842, 595);
-		$page_text = $page->text;
-
-		my $ypos = put_pdf_header ();
-			 $ypos = put_pdf_description ($ypos, $yeartodo);
-			 $ypos = put_pdf_identity ($ypos, $yeartodo);
-			 $ypos = put_pdf_table_header ($ypos );		
-
-		#	- LOOP ON ITEMS
-		my $submitted;
-		my $prof_act   = getProfAct ($scipertodo, $yeartodo);
-dumpit "--> makePDF : getProfAct -> " => $prof_act;
-		foreach my $index (sort keys %$prof_act) {
-			next unless $prof_act->{$index}->{status} eq '2';
-			$submitted = $prof_act->{$index}->{ts};
-			
-			if ( $ypos < $BOTTOM ) {
-					$page = $pdf->page();
-					$gfx 	= $page->gfx;
-					$page_text = $page->text;
-					$page->mediabox(842, 595);
-				
-					$page_nb++;
-
-					$ypos = put_pdf_header ();
-					$ypos = put_pdf_table_header ($ypos );		
-			}
-
-			text_block(
-					$page_text,
-					$index,
-					-x        => 20/mm,
-					-y        => $ypos -7/pt,
-					-w        => 20/mm,
-					-h				=> 20/mm,
-					-lead     => $std_lead ,
-					-align    => 'justify',
-				);
-			my $ypos1 = text_block(
-					$page_text,
-					$prof_act->{$index}->{activity},
-					-x        => 32/mm,
-					-y        => $ypos -7/pt,
-					-w        => 140/mm,
-					-h				=> 20/mm,
-					-lead     => $std_lead ,
-					-align    => 'justify',
-				);
-			my $ypos2 = text_block(
-					$page_text,
-					$prof_act->{$index}->{principal},
-					-x        => 180/mm,
-					-y        => $ypos -7/pt,
-					-w        => 90/mm,
-					-h				=> 20/mm,
-					-lead     => $std_lead ,
-					-align    => 'justify',
-			);
-                        # TODO: add dateFrom / dateTo
-
-			$ypos = min($ypos1, $ypos2);
-			$ypos -= 7/mm;
-			$gfx->move(  $LEFT, $ypos );
-			$gfx->line( 280/mm, $ypos );
-			$gfx->stroke;
-
-			$ypos -= 5/mm;
-				
-		}
-
-		#	-- FOOTER
-		$page_text->font( $font{$std_font}{'Bold'}, 9/pt );
-		$page_text->fillcolor('red');
-		text_block(
-				$page_text,
-				qq{Date:  $submitted},
-				-x        => $LEFT,
-				-y        => 20/mm,
-				-w        => $std_width,
-				-h				=> 20/mm,
-				-lead     => $std_lead ,
-				-align    => 'justify',
-			);
-
-		#	- DONE		
-		$pdf->save;
-		$pdf->end();
-		 
-		$pdf_file;
-
-}
-
-sub put_pdf_table_header {
-	my $ypos = shift;
-
-	#	- TABLE HEADER
-  $ypos -= 5/mm;
-	$gfx->linedash( );
-	$gfx->move(  $LEFT, $ypos );
-	$gfx->line( 280/mm, $ypos );
-	$gfx->move(  $LEFT, $ypos-10/mm );
-	$gfx->line( 280/mm, $ypos-10/mm );
-	$gfx->stroke;
-
-  $ypos -= 7/mm;
-	$page_text->font( $font{$std_font}{'Roman'}, 9/pt );
-        text_block(
-			$page_text,
-			'Type and area of activity (including dual professorships)',
-			-x        => 32/mm,
-			-y        => $ypos,
-			-w        => $std_width,
-			-h				=> 20/mm,
-			-lead     => $std_lead ,
-			-align    => 'justify',
-		);
-	$ypos = text_block(
-			$page_text,
-			'Name and address of principal (or institution)',
-			-x        => 180/mm,
-			-y        => $ypos,
-			-w        => $std_width,
-			-h				=> 20/mm,
-			-lead     => $std_lead ,
-			-align    => 'justify',
-		);
-
-        # TODO: add from / to headers
-
-		return $ypos
-
-}
-
-sub put_pdf_identity {
-	my ($ypos, $yeartodo) = @_;
-	   $ypos -= 7/mm;
-
-	my $scipertodo = $CurrentUser->{sciper};
-	
-	my $name;
-	if ( $CurrentUser->is_root && $args->{'scipertodo'} ) {
-		$scipertodo = $args->{'scipertodo'}	;
-  	my $user 		= User->by_sciper($scipertodo);
-  	error ("person not found") unless $user;
-		$name	= "$user->{firstname} $user->{lastname}";
-	} else {
-		$name = "$CurrentUser->{firstname} $CurrentUser->{lastname}";
-	}
-	my $hierarchie = Profs->by_year($yeartodo)->hierarchy($scipertodo);
-
-	$page_text->font( $font{$std_font}{'Bold'}, 9/pt );
-	$page_text->fillcolor('red');
-	text_block(
-			$page_text,
-			qq{Full Name:  $name},
-			-x        => $LEFT,
-			-y        => $ypos,
-			-w        => $std_width,
-			-h				=> 20/mm,
-			-lead     => $std_lead ,
-			-align    => 'justify',
-		);
-	text_block(
-			$page_text,
-			qq{EPFL School / College:   $hierarchie},
-			-x        => 180/mm,
-			-y        => $ypos,
-			-w        => $std_width,
-			-h				=> 20/mm,
-			-lead     => $std_lead ,
-			-align    => 'justify',
-		);
-
-		#	- certification line
-		$page_text->fillcolor('black');
-		return text_block(
-				$page_text,
-				$pdf_textes[5],
-				-x        => $LEFT,
-				-y        => $ypos - 7/mm,
-				-w        => $std_width,
-				-h				=> 20/mm,
-				-lead     => $std_lead ,
-				-align    => 'justify',
-			);
-}
-
-sub put_pdf_description {
-	my $ypos = shift;
-        my @pdf_txts = @pdf_textes;
-	do {
-          s/YEARNEXT/$yeartodo + 1/ge;
-          s/YEARTODO/$yeartodo/g
-        } for @pdf_txts;
-
-	#	- DESCRIPTION
-	$page_text->font( $font{$std_font}{'Roman'}, 9.5/pt );
-	$ypos = text_block(
-			$page_text,
-			$pdf_txts[0],
-			-x        => $LEFT,
-			-y        => $ypos - 20/pt,
-			-w        => $std_width,
-			-h				=> 20/mm,
-			-lead     => $std_lead ,
-			-align    => 'justify',
-	);
-	$page_text->font( $font{$std_font}{'Roman'}, 8/pt );
-	$ypos = text_block(
-			$page_text,
-			$pdf_txts[1],
-			-x        => $LEFT,
-			-y        => $ypos - 7/pt,
-			-w        => $std_width,
-			-h				=> 25/mm,
-			-lead     => $small_lead,
-			-align    => 'justify',
-	);
-	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
-	$ypos = text_block(
-			$page_text,
-			$pdf_txts[2],
-			-x        => $LEFT,
-			-y        => $ypos - 7/pt,
-			-w        => $std_width,
-			-h				=> 25/mm,
-			-lead     => $small_lead,
-			-align    => 'justify',
-	);
-	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
-	$ypos = text_block(
-			$page_text,
-			$pdf_txts[3],
-			-x        => $LEFT,
-			-y        => $ypos - 7/pt,
-			-w        => $std_width,
-			-h				=> 25/mm,
-			-lead     => $small_lead,
-			-align    => 'justify',
-	);
-	$page_text->font( $font{$std_font}{'Roman'}, 9.5/pt );
-	$ypos = text_block(
-			$page_text,
-			$pdf_txts[4],
-			-x        => $LEFT,
-			-y        => $ypos - 7/pt,
-			-w        => $std_width,
-			-h				=> 20/mm,
-			-lead     => $std_lead ,
-			-align    => 'justify',
-		);
-
-	return $ypos;
-
-}
-
-sub put_pdf_header {
-
-	%font = (
-		 Helvetica => {
-				 Bold   => $pdf->corefont( 'Helvetica-Bold'),
-				 Roman  => $pdf->corefont( 'Helvetica'),
-				 Italic => $pdf->corefont( 'Helvetica-Oblique'),
-		 },
-		 Verdana => {
-				 Bold   => $pdf->corefont( 'Verdana,Bold'),
-				 Roman  => $pdf->corefont( 'Verdana'),
-				 Italic => $pdf->corefont( 'Verdana,Italic'),
-		 },
-		 Times => {
-				 Bold   => $pdf->corefont( 'Times-Bold'),
-				 Roman  => $pdf->corefont( 'Times'),
-				 Italic => $pdf->corefont( 'Times-Italic'),
-		 },
-	);
-
-	$page_text->font( $font{$std_font}{'Bold'}, 9.5/pt );
-	$page_text->fillcolor('black');
-
-	text_block(
-			$page_text,
-			'CONFIDENTIAL',
-			-x        => $LEFT,
-			-y        => 198/mm,
-			-w        => $std_width,
-			-h        => 110/mm - 7/pt,
-		);
-
-	my $logo_file = do { no utf8::all; $pdf->image_png($epfl_logo); };
-#	$gfx->image( $logo_file, 225/mm, 180/mm, 47/mm, 25/mm );
-	$gfx->image( $logo_file, 229/mm, 188/mm, 50/mm, 14/mm );
-
-	$gfx->move( $LEFT, 195/mm );
-#	$gfx->line( 205/mm, 195/mm );
-	$gfx->line( 215/mm, 195/mm );
-	$gfx->stroke;
-
-	#	- HEADER
-	$page_text->font( $font{$std_font}{'Bold'}, 10/pt );
-	my $ypos = text_block(
-			$page_text,
-			'Activities engaged in outside of EPFL',
-			-x        => 100/mm,
-			-y        => 175/mm,
-			-w        => $std_width,
-		);
-
-	$ypos = text_block(
-			$page_text,
-			'Professors\' annual disclosure  - '.$yeartodo,
-			-x        => 100/mm,
-			-y        => $ypos - 12/pt,
-			-w        => $std_width,
-		);
-
-	#	-- PAGE NB
-	$page_text->font( $font{$std_font}{'Roman'}, 8/pt );
-	text_block(
-			$page_text,
-			qq{Page $page_nb},
-			-x        => $LEFT,
-			-y        => 10/mm,
-			-w        => $std_width,
-		);
-		
-		return $ypos;
-
-}
-
-#_______________
-sub text_block {
-#
-# text_block() is © Rick Measham, 2004-2007. The latest version can be found in the tutorial located at http://rick.measham.id.au/pdf-api2/
-#
-
-     my $text_object = shift;
-     my $text        = shift;
-     my %arg 				 = @_;
-
-     # Get the text in paragraphs
-     my @paragraphs = split( /\n/, $text );
-     # calculate width of all words
-     my $space_width = $text_object->advancewidth(' ');
-
-     my @words = split( /\s+/, $text );
-     my %width = ();
-     foreach (@words) {
-         next if exists $width{$_};
-         $width{$_} = $text_object->advancewidth($_);
-     }
-
-     my $ypos 				 	 = $arg{'-y'};
-     my @paragraph 			 = split( / /, shift(@paragraphs) );
-     my $first_line      = 1;
-     my $first_paragraph = 1;
-
-     # while we can add another line
-     while ( $ypos >= $arg{'-y'} - $arg{'-h'} + $arg{'-lead'} ) {
-
-         unless (@paragraph) {
-             last unless scalar @paragraphs;
-             @paragraph = split( / /, shift(@paragraphs) );
-             $ypos -= $arg{'-parspace'} if $arg{'-parspace'};
-             last unless $ypos >= $arg{'-y'} - $arg{'-h'};
-
-             $first_line      = 1;
-             $first_paragraph = 0;
-         }
-
-         my $xpos = $arg{'-x'};
-
-         # while there's room on the line, add another word
-         my @line = ();
-
-         my $line_width = 0;
-         if ( $first_line && exists $arg{'-hang'} ) {
-
-             my $hang_width = $text_object->advancewidth( $arg{'-hang'} );
-
-             $text_object->translate( $xpos, $ypos );
-             $text_object->text( $arg{'-hang'} );
-
-             $xpos       += $hang_width;
-             $line_width += $hang_width;
-             $arg{'-indent'} += $hang_width if $first_paragraph;
-
-         }
-         elsif ( $first_line && exists $arg{'-flindent'} ) {
-
-             $xpos       += $arg{'-flindent'};
-             $line_width += $arg{'-flindent'};
-
-         }
-         elsif ( $first_paragraph && exists $arg{'-fpindent'} ) {
-
-             $xpos       += $arg{'-fpindent'};
-             $line_width += $arg{'-fpindent'};
-
-         }
-         elsif ( exists $arg{'-indent'} ) {
-
-             $xpos       += $arg{'-indent'};
-             $line_width += $arg{'-indent'};
-
-         }
-
-         while ( @paragraph
-             and $line_width + ( scalar(@line) * $space_width ) +
-             $width{ $paragraph[0] } < $arg{'-w'} )
-         {
-
-             $line_width += $width{ $paragraph[0] };
-             push( @line, shift(@paragraph) );
-
-         }
-
-         # calculate the space width
-         my ( $wordspace, $align );
-         if ( $arg{'-align'} eq 'fulljustify'
-             or ( $arg{'-align'} eq 'justify' and @paragraph ) )
-         {
-
-             if ( scalar(@line) == 1 ) {
-                 @line = split( //, $line[0] );
-
-             }
-             $wordspace = ( $arg{'-w'} - $line_width ) / ( scalar(@line) - 1 );
-             $align 		= 'justify';
-         }
-         else {
-             $align = ( $arg{'-align'} eq 'justify' ) ? 'left' : $arg{'-align'};
-             $wordspace = $space_width;
-         }
-         $line_width += $wordspace * ( scalar(@line) - 1 );
-         if ( $align eq 'justify' ) {
-             foreach my $word (@line) {
-
-                 $text_object->translate( $xpos, $ypos );
-                 $text_object->text($word);
-
-                 $xpos += ( $width{$word} + $wordspace ) if (@line);
-
-             }
-         }
-         else {
-
-             # calculate the left hand position of the line
-             if ( $align eq 'right' ) {
-                 $xpos += $arg{'-w'} - $line_width;
-
-             }
-             elsif ( $align eq 'center' ) {
-                 $xpos += ( $arg{'-w'} / 2 ) - ( $line_width / 2 );
-
-             }
-
-             # render the line
-             $text_object->translate( $xpos, $ypos );
-
-             $text_object->text( join( ' ', @line ) );
-
-         }
-         $ypos -= $arg{'-lead'};
-         $first_line = 0;
-
-     }
-
-     return $ypos
- }
 #	-------------
 sub write_logs {
 	my ($scipertodo, $descr) = @_;
