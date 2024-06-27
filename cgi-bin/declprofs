@@ -1660,7 +1660,7 @@ dumpit "--> makePDF : getProfAct -> " => $prof_act;
 					$ypos = put_pdf_table_header ($ypos );		
 			}
 
-			my ( $endw1, $ypos1, $paragraph1 ) = text_block(
+			text_block(
 					$page_text,
 					$index,
 					-x        => 20/mm,
@@ -1670,7 +1670,7 @@ dumpit "--> makePDF : getProfAct -> " => $prof_act;
 					-lead     => $std_lead ,
 					-align    => 'justify',
 				);
-			my ( $endw1, $ypos1, $paragraph1 ) = text_block(
+			my $ypos1 = text_block(
 					$page_text,
 					$prof_act->{$index}->{activity},
 					-x        => 32/mm,
@@ -1680,7 +1680,7 @@ dumpit "--> makePDF : getProfAct -> " => $prof_act;
 					-lead     => $std_lead ,
 					-align    => 'justify',
 				);
-			my ( $endw2, $ypos2, $paragraph2 ) = text_block(
+			my $ypos2 = text_block(
 					$page_text,
 					$prof_act->{$index}->{principal},
 					-x        => 180/mm,
@@ -1704,7 +1704,7 @@ dumpit "--> makePDF : getProfAct -> " => $prof_act;
 		#	-- FOOTER
 		$page_text->font( $font{$std_font}{'Bold'}, 9/pt );
 		$page_text->fillcolor('red');
-		my ( $endw, $ypos, $paragraph ) = text_block(
+		text_block(
 				$page_text,
 				qq{Date:  $submitted},
 				-x        => $LEFT,
@@ -1737,7 +1737,7 @@ sub put_pdf_table_header {
 
   $ypos -= 7/mm;
 	$page_text->font( $font{$std_font}{'Roman'}, 9/pt );
-	my ( $endw, $ypos1, $paragraph ) = text_block(
+        text_block(
 			$page_text,
 			'Type and area of activity (including dual professorships)',
 			-x        => 32/mm,
@@ -1747,7 +1747,7 @@ sub put_pdf_table_header {
 			-lead     => $std_lead ,
 			-align    => 'justify',
 		);
-	( $endw, $ypos, $paragraph ) = text_block(
+	$ypos = text_block(
 			$page_text,
 			'Name and address of principal (or institution)',
 			-x        => 180/mm,
@@ -1781,7 +1781,7 @@ sub put_pdf_identity {
 
 	$page_text->font( $font{$std_font}{'Bold'}, 9/pt );
 	$page_text->fillcolor('red');
-	my ( $endw, $ypos1, $paragraph ) = text_block(
+	text_block(
 			$page_text,
 			qq{Full Name:  $name},
 			-x        => $LEFT,
@@ -1791,7 +1791,7 @@ sub put_pdf_identity {
 			-lead     => $std_lead ,
 			-align    => 'justify',
 		);
-	( $endw, $ypos1, $paragraph ) = text_block(
+	text_block(
 			$page_text,
 			qq{EPFL School / College:   $hierarchie},
 			-x        => 180/mm,
@@ -1804,7 +1804,7 @@ sub put_pdf_identity {
 
 		#	- certification line
 		$page_text->fillcolor('black');
-		( $endw, $ypos, $paragraph ) = text_block(
+		return text_block(
 				$page_text,
 				$pdf_textes[5],
 				-x        => $LEFT,
@@ -1814,9 +1814,6 @@ sub put_pdf_identity {
 				-lead     => $std_lead ,
 				-align    => 'justify',
 			);
-
-		return $ypos;
-
 }
 
 sub put_pdf_description {
@@ -1829,7 +1826,7 @@ sub put_pdf_description {
 
 	#	- DESCRIPTION
 	$page_text->font( $font{$std_font}{'Roman'}, 9.5/pt );
-	my ( $endw, $ypos, $paragraph ) = text_block(
+	$ypos = text_block(
 			$page_text,
 			$pdf_txts[0],
 			-x        => $LEFT,
@@ -1840,7 +1837,7 @@ sub put_pdf_description {
 			-align    => 'justify',
 	);
 	$page_text->font( $font{$std_font}{'Roman'}, 8/pt );
-	( $endw, $ypos, $paragraph ) = text_block(
+	$ypos = text_block(
 			$page_text,
 			$pdf_txts[1],
 			-x        => $LEFT,
@@ -1851,7 +1848,7 @@ sub put_pdf_description {
 			-align    => 'justify',
 	);
 	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
-	( $endw, $ypos, $paragraph ) = text_block(
+	$ypos = text_block(
 			$page_text,
 			$pdf_txts[2],
 			-x        => $LEFT,
@@ -1862,7 +1859,7 @@ sub put_pdf_description {
 			-align    => 'justify',
 	);
 	$page_text->font( $font{$std_font}{'Italic'}, 8/pt );
-	( $endw, $ypos, $paragraph ) = text_block(
+	$ypos = text_block(
 			$page_text,
 			$pdf_txts[3],
 			-x        => $LEFT,
@@ -1873,7 +1870,7 @@ sub put_pdf_description {
 			-align    => 'justify',
 	);
 	$page_text->font( $font{$std_font}{'Roman'}, 9.5/pt );
-	( $endw, $ypos, $paragraph ) = text_block(
+	$ypos = text_block(
 			$page_text,
 			$pdf_txts[4],
 			-x        => $LEFT,
@@ -1911,7 +1908,7 @@ sub put_pdf_header {
 	$page_text->font( $font{$std_font}{'Bold'}, 9.5/pt );
 	$page_text->fillcolor('black');
 
-	my ( $endw, $ypos, $paragraph ) = text_block(
+	text_block(
 			$page_text,
 			'CONFIDENTIAL',
 			-x        => $LEFT,
@@ -1931,7 +1928,7 @@ sub put_pdf_header {
 
 	#	- HEADER
 	$page_text->font( $font{$std_font}{'Bold'}, 10/pt );
-	( $endw, $ypos, $paragraph ) = text_block(
+	my $ypos = text_block(
 			$page_text,
 			'Activities engaged in outside of EPFL',
 			-x        => 100/mm,
@@ -1939,7 +1936,7 @@ sub put_pdf_header {
 			-w        => $std_width,
 		);
 
-	( $endw, $ypos, $paragraph ) = text_block(
+	$ypos = text_block(
 			$page_text,
 			'Professors\' annual disclosure  - '.$yeartodo,
 			-x        => 100/mm,
@@ -1949,7 +1946,7 @@ sub put_pdf_header {
 
 	#	-- PAGE NB
 	$page_text->font( $font{$std_font}{'Roman'}, 8/pt );
-	my ( $endw1, $ypos1, $paragraph1 ) = text_block(
+	text_block(
 			$page_text,
 			qq{Page $page_nb},
 			-x        => $LEFT,
@@ -1970,7 +1967,6 @@ sub text_block {
      my $text_object = shift;
      my $text        = shift;
      my %arg 				 = @_;
-     my $endw;
 
      # Get the text in paragraphs
      my @paragraphs = split( /\n/, $text );
@@ -2076,7 +2072,6 @@ sub text_block {
                  $xpos += ( $width{$word} + $wordspace ) if (@line);
 
              }
-             $endw = $arg{'-w'};
          }
          else {
 
@@ -2093,17 +2088,15 @@ sub text_block {
              # render the line
              $text_object->translate( $xpos, $ypos );
 
-             $endw = $text_object->text( join( ' ', @line ) );
+             $text_object->text( join( ' ', @line ) );
 
          }
          $ypos -= $arg{'-lead'};
          $first_line = 0;
 
      }
-     unshift( @paragraphs, join( ' ', @paragraph ) ) if scalar(@paragraph);
 
-     return ( $endw, $ypos, join( "\n", @paragraphs ) )
-
+     return $ypos
  }
 #	-------------
 sub write_logs {
