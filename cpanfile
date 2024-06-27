@@ -10,4 +10,5 @@ requires 'DBD::mysql', '';
 requires 'PDF::API2', '';
 requires 'Date::Calc', '';
 requires 'Mail::Sendmail', '0.80';
-requires 'JSON', '',
+requires 'JSON', '';
+requires 'Tie::IxHash', '';
