@@ -62,3 +62,5 @@
             tls: true
   vars:
     traefik_root_location: /srv/traefik
+  tags:
+    - declprofs.traefik
