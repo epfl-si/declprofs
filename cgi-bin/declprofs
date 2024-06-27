@@ -29,6 +29,7 @@ use Mail::Sendmail;
 use PDF::API2;
 use Date::Calc;
 use Encode qw(encode);
+use List::Util qw(min);
 
 sub dumpit {
   my @things = @_;
@@ -1691,7 +1692,7 @@ dumpit "--> makePDF : getProfAct -> " => $prof_act;
 					-align    => 'justify',
 			);
 
-			$ypos = $ypos1 > $ypos2 ? $ypos2 : $ypos1;
+			$ypos = min($ypos1, $ypos2);
 			$ypos -= 7/mm;
 			$gfx->move(  $LEFT, $ypos );
 			$gfx->line( 280/mm, $ypos );
