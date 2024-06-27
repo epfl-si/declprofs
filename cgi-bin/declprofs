@@ -35,7 +35,7 @@ use vars qw($roots $exclude_scipers $add_scipers $test_email $cc_email
 require '/app/etc/access_params';  # Populates the variables above
 
 use vars qw($pi $qs $us $me $key $msg $lang $ldap
-			$tmpldir $dbh $query $year $yeartodo $REGEX_SCIPER $login_as
+			$tmpldir $dbh $query $year $REGEX_SCIPER $login_as
 			$Persons $authtoken $MAX_SESS_DURATION $AP_email $URL
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
 			$PROC $MAX_DELAY $Roles
@@ -903,7 +903,7 @@ if ($FORCEPREVYEAR) {
   $LASTDATE			= $year.'-07-31';
 }
 
-$yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
+my $yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;
 
 $allRemarks		= getAllRemarks();
 
