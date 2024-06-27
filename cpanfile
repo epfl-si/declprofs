@@ -6,8 +6,8 @@ requires 'Net::LDAPS', '';
 requires 'utf8::all';
 requires 'Import::Into';  # Indirect (hidden?) dependency of the former
 
-# in common with common-libs
 requires 'DBD::mysql', '';
 requires 'PDF::API2', '';
 requires 'Date::Calc', '';
 requires 'Mail::Sendmail', '0.80';
+requires 'JSON', '',
