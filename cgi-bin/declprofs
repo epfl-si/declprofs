@@ -418,14 +418,23 @@ tie (our %prof_act_cols, "Tie::IxHash",
   activity => {
     title => 'Type and area of activity (including dual professorships)',
     x => 32/mm,
-    w => 140/mm,
+    w => 40/mm,
   },
   principal => {
     title => 'Name and address of principal (or institution)',
-    x => 180/mm,
-    w => 90/mm,
+    x => 100/mm,
+    w => 60/mm,
+  },
+  dateFrom => {
+    title => 'Date from',
+    x => 190/mm,
+    w => 40/mm,
+  },
+  dateTo => {
+    title => 'Date to',
+    x => 230/mm,
+    w => 40/mm,
   }
-  # TODO: add dateFrom / dateTo
 );
 
 
@@ -537,6 +546,7 @@ sub put_prof_act_running_header {
 			-y        => $ypos,
 			-h        => $h,
 			-w        => $col->{w},
+                        -align    => 'left'
 		),
 
   } (keys %prof_act_cols));
