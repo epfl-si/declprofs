@@ -40,14 +40,13 @@ use vars qw($pi $qs $us $me $key $msg $lang $ldap
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
 			$PROC $MAX_DELAY $Roles
 			$SESSDIR $Accreds $allRemarks
-			$ROLE_RESPIT $ROLE_ADMINIT $PREPROD $MINPROFACCRED $FORCEPREVYEAR
+			$ROLE_RESPIT $ROLE_ADMINIT $MINPROFACCRED $FORCEPREVYEAR
 	);
 
 #	- accred
 $ROLE_RESPIT	= 19;
 $ROLE_ADMINIT	= 20;
 
-$PREPROD				= 0;
 $tmpldir 				= '/app/tmpl/';
 
 $lang 					= 'en';
