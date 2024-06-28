@@ -1,7 +1,5 @@
 # -*- perl -*-
 
-$DEBUG = undef;
-
 # Super-users
 $roots 			= {
   245902 => 1,  # V. Belmondo (APR)

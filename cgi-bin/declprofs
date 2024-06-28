@@ -32,7 +32,7 @@ use Tie::IxHash;
 
 #	- get access params
 use vars qw($roots $exclude_scipers $add_scipers $test_email $cc_email
-            $DEBUG $FORCEPREVYEAR);
+            $FORCEPREVYEAR);
 require '/app/etc/access_params';  # Populates the variables above
 
 use vars qw($pi $qs $us $me $key $msg $lang $ldap
@@ -85,7 +85,7 @@ foreach my $item ( split /\//, $pi ) {
 		next;
 	}
   if 	  ($item =~  /^login_as=([1-9]\d{5})$/) {
-  	$login_as = $1 if $DEBUG;
+  	$login_as = $1;
   	next;
 	}
 	$PROC = $item;
