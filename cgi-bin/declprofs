@@ -878,6 +878,11 @@ $currentdate 	= sprintf "%04d-%02d-%02d", $year, $mon, $mday;
 $MAX_DELAY		= 14;		#	- next decl delay, days
 
 our $CurrentUser = User->authenticate($login_as);
+if (! $CurrentUser) {
+  error("User unknown.");
+  exit;
+}
+
 if ($FORCEPREVYEAR) {
   $LASTDATE			= $currentdate;
 } elsif ((! $CurrentUser->is_root()) &&
@@ -1818,15 +1823,20 @@ sub initTempl {
 	   die_on_bad_params => 0) or die "err : $!";
   $template->param(serrMsg 		=> $errMsg);
   $template->param(sPathMe 		=> $me);
-  $template->param(isRoot	 		=> $CurrentUser->is_root);
   $template->param(sYear 			=> $year);
   $template->param(sYearToDo	=> $yeartodo);
   $template->param(isCrtYear	=> $yeartodo eq $year);
   $template->param(sLimitYear	=> $limit_year);
-  $template->param(scipertodo	=> $CurrentUser->{sciper});
-  $template->param(sNom 			=> $CurrentUser->{lastname});
-  $template->param(sPrenom 		=> $CurrentUser->{firstname});
-  $template->param(yearsLoop 	=> $CurrentUser->is_root ? [getAllYears] : []);
+
+  my $is_root = $CurrentUser && $CurrentUser->is_root;
+  $template->param(isRoot	 		=> $is_root);
+  $template->param(yearsLoop 	=> $is_root ? [getAllYears] : []);
+
+  if ($CurrentUser) {
+    $template->param(scipertodo	=> $CurrentUser->{sciper});
+    $template->param(sNom 			=> $CurrentUser->{lastname});
+    $template->param(sPrenom 		=> $CurrentUser->{firstname});
+  }
   $template->param(sNxtDelay 	=> $LASTDATE);
 
 #warn "--> initTempl : scipertodo=$CurrentUser->{sciper}\n";
