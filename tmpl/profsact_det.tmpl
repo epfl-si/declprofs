@@ -40,13 +40,13 @@
 		</div>
 		
 		<TMPL_LOOP NAME=sYearsLoop>
-		<div class="row" <TMPL_IF NAME=isCrtYear>style="background-color: #eeeeee;"</TMPL_IF>>
+		<div class="row prof-year-header" <TMPL_IF NAME=isCrtYear>style="background-color: #eeeeee;"</TMPL_IF>>
 			<div class="col-md-12" style="padding: 0;">
 				<span class="bold"><TMPL_VAR NAME=year></span>
 			</diV>
 		</div>
 
-		<div class="row" <TMPL_IF NAME=isCrtYear>style="background-color: #eeeeee;"</TMPL_IF>>
+		<div class="row prof-year-body" <TMPL_IF NAME=isCrtYear>style="background-color: #eeeeee;"</TMPL_IF>>
 			<div class="col-md-1" style="padding: 0;">
 				<TMPL_IF NAME=isRoot>
 					<TMPL_IF NAME=modYear>
@@ -75,8 +75,14 @@
 					<TMPL_VAR NAME=submitted>
 			</div>
 
-			<div class="col-md-9" id="yearact<TMPL_VAR NAME=year>">
+			<div class="col-md-9 prof-year-activities-table" id="yearact<TMPL_VAR NAME=year>">
 				<TMPL_IF NAME=yearAct>
+					<div class="row bold underlined" style="min-height: 30px;">
+							<div class="profsact-header-activity col-md-3">Activity</div>
+							<div class="profsact-header-principal col-md-3">Principal</div>
+							<div class="profsact-header-from col-md-3">Start date</div>
+							<div class="profsact-header-to col-md-3" syle="padding-left: 0;">End date</div>
+					</div>
 					<TMPL_LOOP NAME=yearAct>
 						<div class="row underlined" style="min-height: 30px;">
 							<div class="profsact-det-activity col-md-3">
