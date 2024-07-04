@@ -28,3 +28,5 @@ COPY declprofs.js declprofs.css /usr/local/apache2/htdocs/extra/
 COPY images /usr/local/apache2/htdocs/images
 COPY cgi-bin /usr/local/apache2/cgi-bin/
 COPY tmpl /app/tmpl
+# The `declprofs` script will stat() itself to determine the build timestamp:
+RUN touch /usr/local/apache2/cgi-bin/declprofs

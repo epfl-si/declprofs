@@ -1827,6 +1827,8 @@ sub initTempl {
   $template->param(sYearToDo	=> $yeartodo);
   $template->param(isCrtYear	=> $yeartodo eq $year);
   $template->param(sLimitYear	=> $limit_year);
+  my @stat_myself = stat($ENV{SCRIPT_FILENAME});
+  $template->param(sBuildTimestamp => $stat_myself[9]);
 
   my $is_root = $CurrentUser && $CurrentUser->is_root;
   $template->param(isRoot	 		=> $is_root);
