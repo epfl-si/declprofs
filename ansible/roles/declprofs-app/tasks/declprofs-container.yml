@@ -40,11 +40,13 @@
     daemon_reload: "{{ _service_changed | bool }}"
     enabled: true
     state: >-
-      {{ "restarted" if ( _service_changed | default(False) )
+      {{ "restarted" if _service_changed or _image_changed
          else "started" }}
   vars:
     _service_changed: >-
       {{ ( (_podman_quadlet | default({})) is changed ) | bool }}
+    _image_changed: >-
+      {{ ( (_declprofs_podman_image | default({})) is changed ) | bool }}
 
 - epfl_si.traefik.dynamic_config:
     name: "{{ declprofs_instance_name }}"

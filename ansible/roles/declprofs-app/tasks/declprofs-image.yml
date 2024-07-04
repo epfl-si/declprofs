@@ -15,3 +15,4 @@
     name: declprofs
     path: "{{ declprofs_builddir }}"
     force: true
+  register: _declprofs_podman_image
