@@ -77,3 +77,7 @@ function checkAll (formname, checkstatus) {
 	} 
 	return checkboxes;
 }
+
+function confirmSubmitActivities (that) {
+  return confirm('Submit this disclosure form ?');
+}
