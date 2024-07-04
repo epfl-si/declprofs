@@ -79,5 +79,30 @@ function checkAll (formname, checkstatus) {
 }
 
 function confirmSubmitActivities (that) {
+  validateActivitiesForm(that.form);
   return confirm('Submit this disclosure form ?');
+}
+
+function confirmSaveActivities (that) {
+  validateActivitiesForm(that.form);
+  return true;
+}
+
+function validateActivitiesForm (formElement) {
+  let isValid = true;
+
+  const dateElements = Array.prototype.filter.call(
+    formElement.getElementsByTagName("input"),
+    (t) => t.type === "date");
+  for (let i = 0; i < dateElements.length; i += 2) {
+    const [dateFromElement, dateToElement] = [dateElements[i], dateElements[i + 1]];
+    if (dateFromElement.value > dateToElement.value) {
+      dateFromElement.setCustomValidity("Cannot be after the end date");
+      isValid = false;
+    } else {
+      dateFromElement.setCustomValidity("");
+    }
+  }
+
+  return isValid;
 }
