@@ -41,8 +41,7 @@ use vars qw($pi $qs $us $me $key $msg $lang $ldap
 			$INACT $PENDING $SENT $args $err_msgs $AP_URL $LASTDATE $currentdate
 			$PROC $MAX_DELAY $Roles
 			$SESSDIR $Accreds $allRemarks
-			$ROLE_RESPIT $ROLE_ADMINIT $MINPROFACCRED $FORCEPREVYEAR
-	);
+			$ROLE_RESPIT $ROLE_ADMINIT $MINPROFACCRED);
 
 #	- accred
 $ROLE_RESPIT	= 19;
