@@ -31,13 +31,19 @@ $exclude_scipers = '177247,171600,196676,155721,185424';
  # comment yourself out of $roots, above) to test-in-production. #}
 $add_scipers = '326993,243371';
 
+# It only becomes possible to edit data for year $YEAR at date "${YEAR}-${rollover_date}",
+# unless $FORCEPREVYEAR is true:
+{% if inventory_environment == "production" %}
+$rollover_date = "07-15";
+{% else %}
+$rollover_date = "07-01";  # Already in the past the day I am writing
+                           # this; so that year 2024 rolls over in
+                           # test
+{% endif %}
+
 # Set up “extended deadline”; year won't roll over to the next one as
 # # long as the value is 1. If it is 0, the year rolls over on April 1st.
-{% if inventory_environment == "production" %}
-$FORCEPREVYEAR = 1;
-{% else %}
 $FORCEPREVYEAR = 0;
-{% endif %}
 
 # Please don't touch the last line.
 1;

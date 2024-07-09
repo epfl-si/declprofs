@@ -32,7 +32,7 @@ use Tie::IxHash;
 
 #	- get access params
 use vars qw($roots $exclude_scipers $add_scipers $test_email $cc_email
-            $FORCEPREVYEAR);
+            $FORCEPREVYEAR $rollover_date);
 require '/app/etc/access_params';  # Populates the variables above
 
 use vars qw($pi $qs $us $me $key $msg $lang $ldap
@@ -888,7 +888,7 @@ if ($FORCEPREVYEAR) {
          (my $next_delay = $CurrentUser->get_reminder_next_delay($year - 1))) {
   $LASTDATE = $next_delay;
 } else {
-  $LASTDATE			= $year.'-07-31';
+  $LASTDATE			= "${year}-${rollover_date}";
 }
 
 my $yeartodo 		= $currentdate le $LASTDATE ? $year-1 : $year;

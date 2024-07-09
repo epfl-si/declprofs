@@ -20,7 +20,7 @@ $add_scipers = '243371';
 
 # Set up “extended deadline”; year won't roll over to the next one as
 # # long as the value is 1. If it is 0, the year rolls over on April 1st.
-$FORCEPREVYEAR = 1;
+$FORCEPREVYEAR = 0;
 
 # Please don't touch the last line.
 1;
