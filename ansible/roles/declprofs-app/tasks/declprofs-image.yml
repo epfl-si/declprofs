@@ -7,7 +7,7 @@
 - name: "Check out code to {{ declprofs_builddir }}"
   ansible.builtin.git:
     repo: "{{ declprofs_source_git_repository }}"
-    version: "{{ declprofs_source_git_branch }}"
+    version: "{{ declprofs_source_git_branch | default('master') }}"
     dest: "{{ declprofs_builddir }}"
 
 - name: "Podman image"

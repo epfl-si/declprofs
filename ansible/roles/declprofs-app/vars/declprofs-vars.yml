@@ -4,7 +4,7 @@ declprofs_builddir: "{{ declprofs_topdir }}/build"
 declprofs_image_name: declprofs
 
 declprofs_source_git_repository: https://github.com/epfl-si/declprofs
-declprofs_source_git_branch: feature/container
+# declprofs_source_git_branch: feature/my-feature-branch
 
 declprofs_container_name: "declprofs-{{ inventory_environment }}"
 declprofs_container_run_as_user: www-data
