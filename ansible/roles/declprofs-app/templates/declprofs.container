@@ -9,5 +9,4 @@ Image={{ declprofs_image_name }}
 ContainerName={{ declprofs_container_name }}
 User={{ declprofs_container_run_as_user }}
 PublishPort=127.0.0.1:{{ inventory_local_port }}:8080
-Volume={{ declprofs_rundir }}/access_params:/app/etc/access_params:ro
-Volume={{ declprofs_rundir }}/dbs.conf:/usr/local/etc/dbs.conf:ro
+Volume={{ declprofs_rundir }}:/usr/local/etc:ro

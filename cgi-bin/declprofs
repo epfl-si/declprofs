@@ -33,7 +33,7 @@ use Tie::IxHash;
 #	- get access params
 use vars qw($roots $exclude_scipers $add_scipers $test_email $cc_email
             $FORCEPREVYEAR $rollover_date);
-require '/app/etc/access_params';  # Populates the variables above
+require '/usr/local/etc/access_params';  # Populates the variables above
 
 use vars qw($pi $qs $us $me $key $msg $lang $ldap
 			$tmpldir $dbh $query $year $REGEX_SCIPER $login_as
