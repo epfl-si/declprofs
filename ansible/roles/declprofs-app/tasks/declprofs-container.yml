@@ -46,7 +46,7 @@
     _service_changed: >-
       {{ ( (_podman_quadlet | default({})) is changed ) | bool }}
     _image_changed: >-
-      {{ ( (_declprofs_podman_image | default({})) is changed ) | bool }}
+      {{ ( (hostvars["declprofs-test"]._declprofs_podman_image | default({})) is changed ) | bool }}
 
 - epfl_si.traefik.dynamic_config:
     name: "{{ declprofs_instance_name }}"
