@@ -6,7 +6,7 @@ $roots 			= {
   243371 => 1,  # Dominique Quatravaux
   114096 => 1,  # P. Saladino
   364327 => 1,  # Bernard Benoît, service manager
-{% if inventory_environment == "production" %}
+{% if inventory_environment == "prod" %}
   108509 => 1,	#	N. Boder
   168466 => 1,	#	M. Studer
   162030 => 1,  # Matteo Galli, https://go.epfl.ch/INC0506686
