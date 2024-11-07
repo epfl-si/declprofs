@@ -67,7 +67,7 @@
           a10-poor-mans-healthcheck:
             entrypoints: [ websecure ]
             rule: Path(`/`)
-            priority: 1  {# Lowest #}
+            priority: {# Lowest #} 1
             service: {{ declprofs_instance_name }}
             middlewares: [ redirect-to-probe ]
         middlewares:
