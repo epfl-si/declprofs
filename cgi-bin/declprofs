@@ -1790,7 +1790,7 @@ sub putProfAct {
 			$msg 		 = qq{
 			Dear Professor $CurrentUser->{firstname} $CurrentUser->{lastname},<br>
 			<br>
-			The disclosure of your $yeartodo outside activities has been submitted successfully.<br>
+			The disclosure of your $yeartodo outside activities has been updated successfully.<br>
 			<br>
 			Thank you and best regards,<br>
 			<br>
