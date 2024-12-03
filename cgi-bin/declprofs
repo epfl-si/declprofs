@@ -28,6 +28,7 @@ use Net::LDAPS;
 use Mail::Sendmail;
 use Date::Calc;
 use Encode qw(encode);
+use POSIX qw(strftime);
 use Tie::IxHash;
 
 #	- get access params
@@ -1785,12 +1786,14 @@ sub putProfAct {
 
 		write_logs ($scipertodo, "$yeartodo act update ($items items)");
 
+                my $date = strftime("%d.%m.%Y", localtime);
+
 		if ( $args->{submit} ) {
 			my $subj = "$CurrentUser->{firstname} $CurrentUser->{lastname} annual disclosure of outside activities = ok";
 			$msg 		 = qq{
 			Dear Professor $CurrentUser->{firstname} $CurrentUser->{lastname},<br>
 			<br>
-			The disclosure of your $yeartodo outside activities has been updated successfully.<br>
+			The disclosure of your outside activities, as of $date, has been updated successfully.<br>
 			<br>
 			Thank you and best regards,<br>
 			<br>
