@@ -34,11 +34,9 @@ $add_scipers = '326993,243371';
 # It only becomes possible to edit data for year $YEAR at date "${YEAR}-${rollover_date}",
 # unless $FORCEPREVYEAR is true:
 {% if inventory_environment == "prod" %}
-$rollover_date = "07-15";
+$rollover_date = "01-15";
 {% else %}
-$rollover_date = "07-01";  # Already in the past the day I am writing
-                           # this; so that year 2024 rolls over in
-                           # test
+$rollover_date = "07-01";
 {% endif %}
 
 # Set up “extended deadline”; year won't roll over to the next one as
