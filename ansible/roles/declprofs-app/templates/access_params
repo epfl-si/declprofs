@@ -12,6 +12,7 @@ $roots 			= {
   162030 => 1,  # Matteo Galli, https://go.epfl.ch/INC0506686
 {% else %}
   223529 => 1,  # Tafani-Dereeper
+  290361 => 1,  # Éric Cardoso, for decom pre-work
 {% endif %}
 };
 
