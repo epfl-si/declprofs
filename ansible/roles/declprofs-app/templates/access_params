@@ -16,7 +16,7 @@ $roots 			= {
 {% endif %}
 };
 
-{% if inventory_environment == "production" %}
+{% if inventory_environment == "prod" %}
 $cc_email				= 'facultyaffairs@epfl.ch';
 {% else %}
 $test_email = 'dominique.quatravaux@epfl.ch,vittoria.belmondo@epfl.ch';
