@@ -697,12 +697,14 @@ sub put_header {
 			'Activities engaged in outside of EPFL',
 			-x        => 100/mm,
 			-y        => 175/mm,
+			-h        => 10/mm,
 		);
 
 	$ypos = $self->text_block(
 			'Professors\' annual disclosure  - '.$self->{yeartodo},
 			-x        => 100/mm,
 			-y        => $ypos - 12/pt,
+			-h        => 10/mm,
 		);
 
 	#	-- PAGE NB
