@@ -393,10 +393,10 @@ use List::Util qw(min);
 use File::Slurp;
 
 my @pdf_textes = (
- qq|Once per year, professors shall disclose outside activities, according to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1).|,
- qq|Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1.|,
+ qq|According to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1), professors shall disclose outside activities at regular intervals, whenever a new activity is taken up or in the event of any change.|,
  qq||,
- qq|The disclosure shall be performed by March 31st, YEARNEXT, at the latest. Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3). All activities engaged in during the period from January 1st, YEARTODO, to December 31st, YEARTODO, shall be listed.|,
+ qq|Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1. Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3).|,
+ qq||,
  qq|With my submission, I have certified that this list of activities is complete and accurate and declare not to have devoted more than the equivalent of 1 day per week to them.|,
      );
 
@@ -426,12 +426,12 @@ tie (our %prof_act_cols, "Tie::IxHash",
     w => 60/mm,
   },
   dateFrom => {
-    title => 'Date from',
+    title => 'Start date',
     x => 190/mm,
     w => 40/mm,
   },
   dateTo => {
-    title => 'Date to',
+    title => 'End date',
     x => 230/mm,
     w => 40/mm,
   }
@@ -643,28 +643,24 @@ sub put_description {
 			-y        => $ypos - 20/pt,
 			-h				=> 20/mm,
 	);
-	$self->set_font('Roman',  8/pt);
 	$ypos = $self->text_block(
 			$pdf_txts[1],
 			-y        => $ypos - 7/pt,
 			-h				=> 25/mm,
 			-lead     => small_lead,
 	);
-	$self->set_font('Italic', 8/pt);
 	$ypos = $self->text_block(
 			$pdf_txts[2],
 			-y        => $ypos - 7/pt,
 			-h				=> 25/mm,
 			-lead     => small_lead,
 	);
-	$self->set_font('Italic', 8/pt);
 	$ypos = $self->text_block(
 			$pdf_txts[3],
 			-y        => $ypos - 7/pt,
 			-h				=> 25/mm,
 			-lead     => small_lead,
 	);
-	$self->set_font('Roman', 9.5/pt);
 	$ypos = $self->text_block(
 			$pdf_txts[4],
 			-y        => $ypos - 7/pt,
@@ -701,7 +697,7 @@ sub put_header {
 		);
 
 	$ypos = $self->text_block(
-			'Professors\' annual disclosure  - '.$self->{yeartodo},
+			'Disclosure form for professors  - '.$self->{yeartodo},
 			-x        => 100/mm,
 			-y        => $ypos - 12/pt,
 			-h        => 10/mm,
