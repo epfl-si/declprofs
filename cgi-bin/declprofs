@@ -1760,7 +1760,9 @@ sub putProfAct {
   }
 
   my $msg;
+  my $date = strftime("%d.%m.%Y", localtime);
   if ( $scipertodo ne $CurrentUser->{sciper} ) {
+
 
   	my $user = User->by_sciper($scipertodo);
   	error ("person not found") unless $user;
@@ -1769,10 +1771,9 @@ sub putProfAct {
 		$msg 		 = qq{
 		Dear Professor $user->{firstname} $user->{lastname},<br>
 		<br>
-		Your disclosure of $yeartodo outside activities has been modified/updated by Faculty Affairs staff.<br>
-		You may check it on <a href="$URL">this page</a><br>
+		The disclosure of your outside activities, as of $date, has been updated successfully.<br>
 		<br>
-		Best regards,<br>
+		Thank you and best regards,<br>
 		<br>
 		EPFL Faculty Affairs Team
 		};
@@ -1783,8 +1784,6 @@ sub putProfAct {
 	} else {
 
 		write_logs ($scipertodo, "$yeartodo act update ($items items)");
-
-                my $date = strftime("%d.%m.%Y", localtime);
 
 		if ( $args->{submit} ) {
 			my $subj = "$CurrentUser->{firstname} $CurrentUser->{lastname} annual disclosure of outside activities = ok";
