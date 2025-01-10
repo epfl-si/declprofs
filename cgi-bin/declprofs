@@ -562,7 +562,7 @@ sub put_prof_act {
 
 	#	- LOOP ON ITEMS
 	my $submitted;
-	foreach my $index (sort keys %$prof_act) {
+	foreach my $index (sort { $a <=> $b } keys %$prof_act) {
 		next unless $prof_act->{$index}->{status} eq '2';
 		$submitted = $prof_act->{$index}->{ts};
 		
@@ -862,6 +862,7 @@ sub text_block {
 
 package main;   #############################################################
 
+use List::Util qw(max);
 
 my ($sec,$min,$hour,$mday,$mon,$yr,$wday,$yday,$isdst) = localtime(time);
 $mon++;
@@ -959,7 +960,7 @@ sub getProfActDataLoop {
 #	my $modcrtyr 			= $currentdate le $LASTDATE && ($year-1) eq $yeartodo ? '1' : '' ;
 
 	my @years_loop; my $yeartodo_done;
-	foreach my $crtyear ( sort keys %$profActByYear) {
+	foreach my $crtyear ( sort { $a <=> $b } keys %$profActByYear) {
 		next if $args->{yeartodo} and $args->{yeartodo} ne $crtyear;
 		my $prof_act = $profActByYear->{$crtyear};
 		my @year_act; my $submitted; my $donebyroot;
@@ -971,7 +972,7 @@ sub getProfActDataLoop {
 			$modcrtyr 	= 1 if $year eq $crtyear;
 		}
 
-		foreach my $index (sort keys %$prof_act) {
+		foreach my $index (sort { $a <=> $b } keys %$prof_act) {
 			push @year_act, { 
 				year		 	=> $crtyear, 
 				scipertodo=> $scipertodo,
@@ -1373,12 +1374,11 @@ sub clone {
 	my $profActByYear = getAllProfAct ($UserTodo->{sciper});
 	my $crt_act			  = $profActByYear->{$yeartodo};
 	my $act_to_clone  = $profActByYear->{$fromyear};
+warn(scalar(keys %$act_to_clone) . " activities in " . $fromyear);
 
 	if ($args->{index}) {
 		error ('Activity not found') unless defined $act_to_clone->{$args->{index}};
-		my @crt_activities = sort keys %$crt_act;
-		my $last_order = pop @crt_activities;
-			 $last_order++;
+		my $next_order = max(keys %$crt_act) + 1;
 
 		my $sql = qq{insert into profsacts set
 				 persid = ?,
@@ -1399,7 +1399,7 @@ sub clone {
 			$UserTodo->{sciper}, 
 			$yeartodo, 
 			$PENDING, 
-			$last_order, 
+			$next_order,
 			$act_to_clone->{$args->{index}}->{activity}, 
 			$act_to_clone->{$args->{index}}->{principal},
 			$act_to_clone->{$args->{index}}->{dateFrom},
@@ -1519,8 +1519,8 @@ sub extract {
 
 	  $output = qq{year\tsciper\torder\tactivity\tprincipal\tfrom\tto\n};
 	
-		foreach my $year ( sort keys %$submittedActs ) {
-			foreach my $index ( sort keys %{$submittedActs->{$year}} ) {
+		foreach my $year ( sort { $a <=> $b } keys %$submittedActs ) {
+			foreach my $index ( sort { $a <=> $b } keys %{$submittedActs->{$year}} ) {
 				$submittedActs->{$year}->{$index}->{activity}  =~ s/\t/ /g;
 				$submittedActs->{$year}->{$index}->{principal} =~ s/\t/ /g;
 				$submittedActs->{$year}->{$index}->{activity}  =~ s/\n/ /g;
@@ -1720,6 +1720,7 @@ sub getProfHistory {
 #_________________
 sub putProfAct {
   my ($yeartodo, $data) = @_;
+use Data::Dumper; warn(sprintf("putProfAct(%s, %s)", $yeartodo, Dumper($data)));
 
 	my $scipertodo = $CurrentUser->{sciper};
 	   $scipertodo = $args->{scipertodo} if $CurrentUser->is_root && $args->{scipertodo};
