@@ -48,18 +48,10 @@
 
 		<div class="row prof-year-body" <TMPL_IF NAME=isCrtYear>style="background-color: #eeeeee;"</TMPL_IF>>
 			<div class="col-md-1" style="padding: 0;">
-				<TMPL_IF NAME=isRoot>
-					<TMPL_IF NAME=modYear>
-							<span class="btn btn-xs btn-info" title="Edit year activity"><span class="glyphicon glyphicon-pencil" onclick="toggleEdit('<TMPL_VAR NAME=year>');"></span></span>
-					<TMPL_ELSE>
-							<span class="btn btn-xs btn-info" title="Clone this year's activity to current year"><span class="glyphicon glyphicon-transfer" onclick="if (confirm('Clone this year activity to current year? The current year\'s declaration will be replaced!')) { location.href='<TMPL_VAR NAME=sPathMe>/clone?fromyear=<TMPL_VAR NAME=year>&scipertodo=<TMPL_VAR NAME=scipertodo>;' }" ></span></span>
-					</TMPL_IF>
+				<TMPL_IF NAME=modYear>
+						<span class="btn btn-xs btn-info" title="Edit year activity"><span class="glyphicon glyphicon-pencil" onclick="toggleEdit('<TMPL_VAR NAME=year>');"></span></span>
 				<TMPL_ELSE>
-					<TMPL_IF NAME=modYear>
-							<span class="btn btn-xs btn-info" title="Edit year activity"><span class="glyphicon glyphicon-pencil" onclick="toggleEdit('<TMPL_VAR NAME=year>');"></span></span>
-					<TMPL_ELSE>
-							<span class="btn btn-xs btn-info" title="Clone this year's activity to current year"><span class="glyphicon glyphicon-transfer" onclick="if (confirm('Clone this year activity to current year? The current year\'s declaration will be replaced!')) { location.href='<TMPL_VAR NAME=sPathMe>/clone?fromyear=<TMPL_VAR NAME=year>&scipertodo=<TMPL_VAR NAME=scipertodo>;' }" ></span></span>
-					</TMPL_IF>
+						<span class="btn btn-xs btn-info" title="Clone this year's activity to current year"><span class="glyphicon glyphicon-transfer" onclick="if (confirm('Clone this year activity to current year? The current year\'s declaration will be replaced!')) { location.href='<TMPL_VAR NAME=sPathMe>/clone?fromyear=<TMPL_VAR NAME=year>&scipertodo=<TMPL_VAR NAME=scipertodo>;' }" ></span></span>
 				</TMPL_IF>
 
 				<TMPL_IF NAME=submitted>
