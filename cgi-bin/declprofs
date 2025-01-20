@@ -957,7 +957,6 @@ sub getProfActDataLoop {
 	
 	my $yeartodo 			= $args->{yeartodo} ? $args->{yeartodo} : $yeartodo;
 	my $profActByYear = getAllProfAct ($scipertodo);
-#	my $modcrtyr 			= $currentdate le $LASTDATE && ($year-1) eq $yeartodo ? '1' : '' ;
 
 	my @years_loop; my $yeartodo_done;
 	foreach my $crtyear ( sort { $a <=> $b } keys %$profActByYear) {
@@ -965,12 +964,7 @@ sub getProfActDataLoop {
 		my $prof_act = $profActByYear->{$crtyear};
 		my @year_act; my $submitted; my $donebyroot;
 
-		my $modcrtyr;
-		if ($currentdate le $LASTDATE) {
-			$modcrtyr 	= 1 if ($year-1) eq $crtyear;
-		} else {
-			$modcrtyr 	= 1 if $year eq $crtyear;
-		}
+		my $modcrtyr = yearIsModifiable($crtyear);
 
 		foreach my $index (sort { $a <=> $b } keys %$prof_act) {
 			push @year_act, { 
@@ -1010,12 +1004,7 @@ sub getProfActDataLoop {
 	}
 	
 	unless (@years_loop && $yeartodo_done) {
-		my $modcrtyr;
-		if ($currentdate le $LASTDATE) {
-			$modcrtyr 	= 1 if ($year-1) eq $yeartodo;
-		} else {
-			$modcrtyr 	= 1 if $year eq $yeartodo;
-		}
+		my $modcrtyr = yearIsModifiable($yeartodo);
 		my $crt_remarks = $CurrentUser->is_root ? $allRemarks->{$yeartodo}->{$scipertodo}->{remark} : $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark};
 		push @years_loop, { 
 			year 	  		=> $yeartodo,
@@ -1037,6 +1026,17 @@ sub getProfActDataLoop {
 	
 	return sort { $b->{year} cmp $a->{year} } @years_loop;
 
+}
+
+sub yearIsModifiable {
+  my ($year_q) = @_;
+
+  if ($currentdate le $LASTDATE) {
+    return 1 if ($year-1) eq $year_q;
+  } else {
+    return 1 if $year eq $year_q;
+  }
+  return undef;
 }
 
 #_________________
