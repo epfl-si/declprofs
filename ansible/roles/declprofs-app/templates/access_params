@@ -37,7 +37,7 @@ $add_scipers = '326993,243371';
 {% if inventory_environment == "prod" %}
 $rollover_date = "03-15";
 {% else %}
-$rollover_date = "07-01";
+$rollover_date = "01-15";
 {% endif %}
 
 # Set up “extended deadline”; year won't roll over to the next one as

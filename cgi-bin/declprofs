@@ -1031,7 +1031,9 @@ sub getProfActDataLoop {
 sub yearIsModifiable {
   my ($year_q) = @_;
 
-  if ($currentdate le $LASTDATE) {
+  if ($CurrentUser->is_root) {
+    return 1 if ($year - 1) <= $year_q;
+  } elsif ($currentdate le $LASTDATE) {
     return 1 if ($year-1) eq $year_q;
   } else {
     return 1 if $year eq $year_q;
