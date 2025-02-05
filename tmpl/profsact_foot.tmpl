@@ -19,7 +19,7 @@
 	<div class="col-md-12" id="footer"> 
 		<hr>
 		<TMPL_IF NAME="sNom">
-		user : <TMPL_VAR NAME="sPrenom"> <TMPL_VAR NAME="sNom">, 
+		<TMPL_IF NAME="isRoot">super-</TMPL_IF>user : <TMPL_VAR NAME="sPrenom"> <TMPL_VAR NAME="sNom">,
 		</TMPL_IF>
 		<span class="copyright">&copy; <TMPL_VAR NAME="sYear"> EPFL</span>
 		-
