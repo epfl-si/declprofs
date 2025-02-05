@@ -936,7 +936,7 @@ sub main {
 		$template 	 		= initTempl('profsact_main.tmpl');
 		$template->param(sNomToDo	 	 => $CurrentUser->{lastname});
 		$template->param(sPrenomToDo => $CurrentUser->{firstname});
-		$template->param(sYearsLoop	 => [sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($scipertodo)]);
+		$template->param(sYearsLoop	 => [getProfActDataLoop ($scipertodo)]);
 
   } else {
   	error ("$err_msgs->{noaccess}") ;
@@ -1255,7 +1255,7 @@ sub search {
     $template->param(sOutLoop	 	 => \@outloop);
     $template->param(sNomToDo	 	 => $outloop[0]->{lastname});
     $template->param(sPrenomToDo => $outloop[0]->{firstname});
-    $template->param(sYearsLoop	 => [sort { $b->{year} cmp $a->{year} } getProfActDataLoop ($outloop[0]->{sciper})]);
+    $template->param(sYearsLoop	 => [getProfActDataLoop ($outloop[0]->{sciper})]);
   } else {
     $template 		 = initTempl('profsact_root_list.tmpl');
     $template->param(sSearch	 	 => $search_item);
