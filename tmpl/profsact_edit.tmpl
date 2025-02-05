@@ -56,7 +56,7 @@
 							<input type="submit" name="save" value="Save" onclick="confirmSaveActivities(this)">  Your inputs are recorded but not submitted
 						
 						<TMPL_IF NAME=isRoot>
-							<div style="float: right; display: inline; position: relative; margin-top: -35px;"><input type="submit" name="save_apr_remarks" value="Save only APR Remarks" >  No Professor notification</div>
+							<div style="float: right; display: inline; position: relative; margin-top: -35px;"><input type="submit" name="save_apr_remarks" value="Save only APR Remarks" onclick="bypassFormValidation(this)">  No Professor notification</div>
 						</TMPL_IF>
 
 						</p>

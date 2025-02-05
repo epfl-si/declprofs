@@ -106,3 +106,10 @@ function validateActivitiesForm (formElement) {
 
   return isValid;
 }
+
+function bypassFormValidation (that) {
+  for (const input of that.form.getElementsByTagName("input")) {
+    input.setCustomValidity("");
+    input.removeAttribute("required");
+  }
+}
