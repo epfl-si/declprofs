@@ -964,8 +964,6 @@ sub getProfActDataLoop {
 		my $prof_act = $profActByYear->{$crtyear};
 		my @year_act; my $submitted; my $donebyroot;
 
-		my $modcrtyr = yearIsModifiable($crtyear);
-
 		foreach my $index (sort { $a <=> $b } keys %$prof_act) {
 			push @year_act, { 
 				year		 	=> $crtyear, 
@@ -975,7 +973,7 @@ sub getProfActDataLoop {
                                 dateFrom        => $prof_act->{$index}->{dateFrom},
                                 dateTo          => $prof_act->{$index}->{dateTo},
 				principal       => $prof_act->{$index}->{principal},
-				modYear 	=> $modcrtyr,
+				modYear 	=> yearIsModifiable($crtyear),
 				isCrtYear => $crtyear eq $year,
 				sPathMe 	=> $me, 
 				index 		=> $index, 
@@ -989,7 +987,7 @@ sub getProfActDataLoop {
 		push @years_loop, {
 			year 				=> $crtyear,
 			scipertodo 	=> $scipertodo,
-			modYear 		=> $modcrtyr,
+			modYear 		=> yearIsModifiable($crtyear),
 			isCrtYear 	=> $crtyear eq $year,
 			submitted 	=> $submitted,
 			yearAct 		=> \@year_act,
@@ -1004,14 +1002,13 @@ sub getProfActDataLoop {
 	}
 	
 	unless (@years_loop && $yeartodo_done) {
-		my $modcrtyr = yearIsModifiable($yeartodo);
 		my $crt_remarks = $CurrentUser->is_root ? $allRemarks->{$yeartodo}->{$scipertodo}->{remark} : $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark};
 		push @years_loop, { 
 			year 	  		=> $yeartodo,
 			scipertodo	=> $scipertodo,
-			modYear   	=> $modcrtyr,
+			modYear   	=> yearIsModifiable($yeartodo),
 			yearAct	  	=> [{ 
-                          modYear  	=> $modcrtyr,
+                          modYear  	=> yearIsModifiable($yeartodo),
                           isCrtYear => $yeartodo eq $year, activity => '',
                           principal => '', index => 1, 
                         }],
