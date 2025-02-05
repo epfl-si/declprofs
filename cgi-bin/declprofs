@@ -1001,24 +1001,28 @@ sub getProfActDataLoop {
 		$yeartodo_done ||= $crtyear eq $yeartodo;
 	}
 	
-	unless (@years_loop && $yeartodo_done) {
-		my $crt_remarks = $CurrentUser->is_root ? $allRemarks->{$yeartodo}->{$scipertodo}->{remark} : $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark};
-		push @years_loop, { 
-			year 	  		=> $yeartodo,
+	my $make_empty_year = sub {
+		my ($year_new) = @_;
+		return {
+			year 	  		=> $year_new,
 			scipertodo	=> $scipertodo,
-			modYear   	=> yearIsModifiable($yeartodo),
+			modYear   	=> yearIsModifiable($year_new),
 			yearAct	  	=> [{ 
-                          modYear  	=> yearIsModifiable($yeartodo),
-                          isCrtYear => $yeartodo eq $year, activity => '',
+                          modYear  	=> yearIsModifiable($year_new),
+                          isCrtYear => $year_new eq $year, activity => '',
                           principal => '', index => 1, 
                         }],
-			isCrtYear 	=> $yeartodo eq $year,
+			isCrtYear 	=> $year_new eq $year,
 			sPathMe   	=> $me, 
 			isroot 	  	=> $CurrentUser->is_root, 
-			crt_remarks	=> $crt_remarks, 
-			remarks			=> $allRemarks->{$yeartodo}->{$scipertodo}->{remark}, 
-			prof_remarks=> $allRemarks->{$yeartodo}->{$scipertodo}->{prof_remark}, 
-		}	;
+			crt_remarks	=> ($CurrentUser->is_root ? $allRemarks->{$year_new}->{$scipertodo}->{remark} : $allRemarks->{$year_new}->{$scipertodo}->{prof_remark}),
+			remarks			=> $allRemarks->{$year_new}->{$scipertodo}->{remark},
+			prof_remarks=> $allRemarks->{$year_new}->{$scipertodo}->{prof_remark},
+		};
+	};
+
+	unless (@years_loop && $yeartodo_done) {
+		push @years_loop, $make_empty_year->($yeartodo);
 	}
 	
 	return sort { $b->{year} cmp $a->{year} } @years_loop;
