@@ -1007,9 +1007,11 @@ sub getProfActDataLoop {
 			year 	  		=> $year_new,
 			scipertodo	=> $scipertodo,
 			modYear   	=> yearIsModifiable($year_new),
+			isYearEmpty	=> 1,
 			yearAct	  	=> [{ 
                           modYear  	=> yearIsModifiable($year_new),
                           isCrtYear => $year_new eq $year, activity => '',
+			  isYearEmpty	=> 1,
                           principal => '', index => 1, 
                         }],
 			isCrtYear 	=> $year_new eq $year,
@@ -1025,7 +1027,17 @@ sub getProfActDataLoop {
 		push @years_loop, $make_empty_year->($yeartodo);
 	}
 	
-	return sort { $b->{year} cmp $a->{year} } @years_loop;
+	@years_loop = sort { $b->{year} cmp $a->{year} } @years_loop;
+
+        # Plug any gap in the years, so that the forms show a contiguous (albeit possibly empty)
+        # sequence of years:
+        for (my $i = 0; $i + 1 < @years_loop; $i++) {
+          if ((my $missing_year = $years_loop[$i]{year} - 1) > $years_loop[$i + 1]{year}) {
+            splice(@years_loop, $i + 1, 0, $make_empty_year->($missing_year));
+          }
+        }
+
+        return @years_loop;
 
 }
 
