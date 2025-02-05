@@ -1787,7 +1787,8 @@ use Data::Dumper; warn(sprintf("putProfAct(%s, %s)", $yeartodo, Dumper($data)));
 		$msg 		 = qq{
 		Dear Professor $user->{firstname} $user->{lastname},<br>
 		<br>
-		The disclosure of your outside activities, as of $date, has been updated successfully.<br>
+		Your disclosure of $yeartodo outside activities has been modified/updated by Faculty Affairs staff.<br>
+		You may check it on <a href="$URL">this page</a><br>
 		<br>
 		Thank you and best regards,<br>
 		<br>
