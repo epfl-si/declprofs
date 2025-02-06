@@ -1037,6 +1037,11 @@ sub getProfActDataLoop {
           }
         }
 
+        # Add one back year for profs who just arrived:
+        if ((@years_loop == 1) and $CurrentUser->is_root) {
+          push @years_loop, $make_empty_year->($years_loop[0]{year} - 1);
+        }
+
         return @years_loop;
 
 }
