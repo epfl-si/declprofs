@@ -67,16 +67,11 @@
             service: {{ declprofs_instance_name }}
             tls: true
       {% if inventory_environment == "prod" %}
-          a10-poor-mans-healthcheck:
+          avi-healthcheck:
             entrypoints: [ websecure ]
-            rule: Path(`/`)
+            rule: Path(`/cgi-bin/probe`)
             priority: {# Lowest #} 1
             service: {{ declprofs_instance_name }}
-            middlewares: [ redirect-to-probe ]
-        middlewares:
-          redirect-to-probe:
-            replacePath:
-              path: /cgi-bin/probe
       {% endif %}
   vars:
     traefik_root_location: /srv/traefik
