@@ -38,7 +38,6 @@ use Accred::Summary;
 use Accred::Units;
 use Accred::UnitsAdmin;
 use Accred::Workflows;
-use Accred::Requests;
 use Accred::Local::Notifier;
 
 my $modulecache = {};
