@@ -121,14 +121,15 @@ package User;   #############################################################
 sub authenticate {
   my ($class, $impersonate) = @_;
 
-  my $tequila = main::tequila_client();
-  $tequila->authenticate ();
-
   my $authenticating = bless {
-    sciper => $tequila->{attrs}->{uniqueid},
-    lastname => $tequila->{attrs}->{name},
-    firstname => $tequila->{attrs}->{firstname},
-    email => $tequila->{attrs}->{email}
+#     sciper => $tequila->{attrs}->{uniqueid},
+#     lastname => $tequila->{attrs}->{name},
+#     firstname => $tequila->{attrs}->{firstname},
+#     email => $tequila->{attrs}->{email}
+    sciper => 243371,
+    lastname => "Quatravaux",
+    firstname => "Dominique",
+    email => 'dominique.quatravaux@epfl.ch'
   }, $class;
 
   if ( $impersonate && $authenticating->is_root) {
