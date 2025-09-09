@@ -5,12 +5,14 @@ services:
   db:
     image: mariadb:10.9.4
     environment:
+      - MYSQL_DATABASE=declprofs
       - MYSQL_ROOT_PASSWORD=secret
     ports:
       # DECLPROFS_DB_PORT is set in .env
       - ${DECLPROFS_DB_PORT}:3306
     volumes:
       - mariadb:/var/lib/mysql
+      - ./seed:/docker-entrypoint-initdb.d
       - ./seed/202406-001-schema.sql:/docker-entrypoint-initdb.d/202406-001-schema.sql
 
   httpd:
@@ -18,7 +20,7 @@ services:
     image: declprofs
     volumes:
       # Like production:
-      - ./devsupport/access_params:/app/etc/access_params
+      - ./devsupport/access_params:/usr/local/etc/access_params
       - ./devsupport/dbs.conf:/usr/local/etc/dbs.conf
       # Not like production — Mount source code on top of the
       # `docker build`t code, for faster embugging:
