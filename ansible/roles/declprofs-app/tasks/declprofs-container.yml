@@ -1,3 +1,18 @@
+- file:
+    state: directory
+    path: "{{ declprofs_env_file | dirname }}"
+
+- name: "`env` file"
+  register: _podman_env
+  copy:
+    dest: "{{ declprofs_env_file }}"
+    content: |
+      REDIRECT_URI=https://{{ inventory_web_hostname }}/auth
+      OIDC_METADATA_URL=https://login.microsoftonline.com/f6c2556a-c4fb-4ab1-a2c7-9e220df11c43/v2.0/.well-known/openid-configuration
+      OIDC_CLIENT_ID={{ declprofs_keybase_secrets.oidc.client_id }}
+      OIDC_CLIENT_SECRET={{ declprofs_keybase_secrets.oidc.client_secret }}
+      OIDC_CRYPTO_PASS={{ declprofs_keybase_secrets.oidc.state_encryption_key }}
+
 - name: "Systemd “quadlet” for declprofs ({{ declprofs_quadlet_config_file }})"
   register: _podman_quadlet
   copy:
@@ -41,9 +56,11 @@
     enabled: true
     state: >-
       {{ "restarted"
-         if _service_changed or _image_changed or _explicitly_required
+         if _service_changed or _image_changed or _env_changed or _explicitly_required
          else "started" }}
   vars:
+    _env_changed: >-
+      {{ ( (_podman_env | default({})) is changed ) | bool }}
     _service_changed: >-
       {{ ( (_podman_quadlet | default({})) is changed ) | bool }}
     _image_changed: >-
