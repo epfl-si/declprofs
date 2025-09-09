@@ -21,7 +21,10 @@ declprofs_db_user: >-
 declprofs_db_password: >-
   {{ declprofs_keybase_secrets.db.password }}
 
-declprofs_rundir: "{{ declprofs_topdir }}/{{ inventory_deployment_stage }}/run"
+_declprofs_per_instance_topdir: "{{ declprofs_topdir }}/{{ inventory_deployment_stage }}"
+declprofs_rundir: "{{ _declprofs_per_instance_topdir }}/run"
 declprofs_instance_name: "declprofs-{{ inventory_deployment_stage }}"
 declprofs_quadlet_config_file: >-
   /etc/containers/systemd/{{ declprofs_instance_name }}.container
+
+declprofs_env_file: "{{ _declprofs_per_instance_topdir }}/env"
