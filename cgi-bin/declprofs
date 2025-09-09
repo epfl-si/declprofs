@@ -120,16 +120,21 @@ package User;   #############################################################
 
 sub authenticate {
   my ($class, $impersonate) = @_;
+ 
+  # if not authenticated, no user returned
+  if (!$ENV{REMOTE_USER}) {
+	return;
+  }
 
   my $authenticating = bless {
 #     sciper => $tequila->{attrs}->{uniqueid},
 #     lastname => $tequila->{attrs}->{name},
 #     firstname => $tequila->{attrs}->{firstname},
 #     email => $tequila->{attrs}->{email}
-    sciper => 243371,
-    lastname => "Quatravaux",
-    firstname => "Dominique",
-    email => 'dominique.quatravaux@epfl.ch'
+    sciper => $ENV{REMOTE_USER},
+    lastname => $ENV{OIDC_CLAIM_family_name},
+    firstname => $ENV{OIDC_CLAIM_given_name},
+    email => $ENV{OIDC_CLAIM_email}
   }, $class;
 
   if ( $impersonate && $authenticating->is_root) {

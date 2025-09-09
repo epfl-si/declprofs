@@ -28,6 +28,12 @@ services:
       - .:/usr/local/apache2/htdocs/extra:ro
       - ./images:/usr/local/apache2/htdocs/images:ro
       - ./tmpl:/app/tmpl:ro
+    environment:
+      - REDIRECT_URI=${REDIRECT_URI}
+      - OIDC_METADATA_URL=https://login.microsoftonline.com/f6c2556a-c4fb-4ab1-a2c7-9e220df11c43/v2.0/.well-known/openid-configuration
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - OIDC_CRYPTO_PASS=0123456789abcdef0123456789abcdef
     links:
       - db:db
     ports:
