@@ -6,11 +6,11 @@ declprofs_image_name: declprofs
 declprofs_source_git_repository: https://github.com/epfl-si/declprofs
 # declprofs_source_git_branch: feature/my-feature-branch
 
-declprofs_container_name: "declprofs-{{ inventory_environment }}"
+declprofs_container_name: "declprofs-{{ inventory_deployment_stage }}"
 declprofs_container_run_as_user: www-data
 
 declprofs_keybase_file: >-
-  /keybase/team/epfl_declprofs/secrets-{{ inventory_environment }}.yml
+  /keybase/team/epfl_declprofs/secrets-{{ inventory_deployment_stage }}.yml
 declprofs_keybase_secrets: >-
   {{ lookup("pipe", "keybase fs read " + declprofs_keybase_file)
   | from_yaml }}
@@ -21,7 +21,7 @@ declprofs_db_user: >-
 declprofs_db_password: >-
   {{ declprofs_keybase_secrets.db.password }}
 
-declprofs_rundir: "{{ declprofs_topdir }}/{{ inventory_environment }}"
-declprofs_instance_name: "declprofs-{{ inventory_environment }}"
+declprofs_rundir: "{{ declprofs_topdir }}/{{ inventory_deployment_stage }}"
+declprofs_instance_name: "declprofs-{{ inventory_deployment_stage }}"
 declprofs_quadlet_config_file: >-
   /etc/containers/systemd/{{ declprofs_instance_name }}.container

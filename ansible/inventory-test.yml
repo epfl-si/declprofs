@@ -4,7 +4,7 @@ containers:
             # distinct containers (on the same host; see
             # also containers: → vars: in inventory-prod.yml)
     declprofs-test:
-      inventory_environment: test
+      inventory_deployment_stage: test
       inventory_local_port: 8087
       inventory_web_hostname: declprofs-test.epfl.ch
       ansible_host: itsxact0002.xaas.epfl.ch

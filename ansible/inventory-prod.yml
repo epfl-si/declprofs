@@ -10,7 +10,7 @@ containers:
             # are distinct "hosts", even though they are actually
             # distinct containers (on the same host)
     declprofs-prod:
-      inventory_environment: prod
+      inventory_deployment_stage: prod
       inventory_local_port: 8088
       inventory_web_hostname: declprofs.epfl.ch
   vars:

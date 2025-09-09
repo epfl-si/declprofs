@@ -66,7 +66,7 @@
             rule: Host(`{{ inventory_web_hostname }}`)
             service: {{ declprofs_instance_name }}
             tls: true
-      {% if inventory_environment == "prod" %}
+      {% if inventory_deployment_stage == "prod" %}
           avi-healthcheck:
             entrypoints: [ websecure ]
             rule: Path(`/cgi-bin/probe`)

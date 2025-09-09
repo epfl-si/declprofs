@@ -2,7 +2,7 @@
   include_vars: declprofs-vars.yml
 
 - name: "Declprofs image"
-  when: inventory_environment == "test"
+  when: inventory_deployment_stage == "test"
   include_tasks:
     file: declprofs-image.yml
     apply:
