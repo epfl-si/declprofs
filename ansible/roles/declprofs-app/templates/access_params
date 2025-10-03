@@ -13,13 +13,19 @@ $roots 			= {
 {% else %}
   223529 => 1,  # Tafani-Dereeper
   290361 => 1,  # Éric Cardoso, for decom pre-work
+  # Project members for a rewrite in another language:
+  128871 => 1,  # Lindo Duratti
+  342287 => 1,  # Saskya Panchaud
+  382268 => 1,  # Ehouarn Duriaux
+  168891 => 1,  # Luc Venries
+
 {% endif %}
 };
 
 {% if inventory_deployment_stage == "prod" %}
 $cc_email				= 'facultyaffairs@epfl.ch';
 {% else %}
-$test_email = 'dominique.quatravaux@epfl.ch,vittoria.belmondo@epfl.ch';
+$test_email = 'dominique.quatravaux@epfl.ch,vittoria.belmondo@epfl.ch,lindo.duratti@epfl.ch,saskya.panchaud@epfl.ch,ehouarn.duriaux@epfl.ch,luc.venries@epfl.ch';
 {% endif %}
 
 # Exceptions
