@@ -15,6 +15,7 @@
   hosts: vms
   gather_facts: no
   roles:
+  - epfl_si.katello_dsi.katello_fleet_member
   - roles/declprofs-vm
 
 - name: "declprofs containerized application"
