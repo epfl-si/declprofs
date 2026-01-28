@@ -41,7 +41,7 @@ $add_scipers = '326993,243371';
 # It only becomes possible to edit data for year $YEAR at date "${YEAR}-${rollover_date}",
 # unless $FORCEPREVYEAR is true:
 {% if inventory_deployment_stage == "prod" %}
-$rollover_date = "01-22";
+$rollover_date = "12-31";
 {% else %}
 $rollover_date = "01-15";
 {% endif %}
